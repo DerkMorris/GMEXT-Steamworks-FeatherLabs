@@ -7,6 +7,7 @@
 #include "YYRValue.h"
 #include "steam_common.h"
 
+#define SteamNetworking SWSteamNetworking
 #pragma region Sessions
 
 bool steam_net_auto_accept_p2p_sessions = true;

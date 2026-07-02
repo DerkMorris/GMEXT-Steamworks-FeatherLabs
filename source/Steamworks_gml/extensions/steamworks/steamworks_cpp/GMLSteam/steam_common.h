@@ -13,6 +13,30 @@
 
 const int EVENT_OTHER_WEB_STEAM = 69;
 extern bool steam_is_initialised;
+extern bool steam_game_server_is_initialised;
+
+// Networking interfaces live on a different Steam pipe in a headless game
+// server process.  Keep the public GML networking API identical in both modes.
+inline ISteamNetworkingSockets* SWSteamNetworkingSockets()
+{
+	return steam_game_server_is_initialised
+		? SteamGameServerNetworkingSockets()
+		: SteamNetworkingSockets();
+}
+
+inline ISteamNetworkingMessages* SWSteamNetworkingMessages()
+{
+	return steam_game_server_is_initialised
+		? SteamGameServerNetworkingMessages()
+		: SteamNetworkingMessages();
+}
+
+inline ISteamNetworking* SWSteamNetworking()
+{
+	return steam_game_server_is_initialised
+		? SteamGameServerNetworking()
+		: SteamNetworking();
+}
 
 extern void Steam_UserStats_Init();
 extern void Steam_Friends_Init();

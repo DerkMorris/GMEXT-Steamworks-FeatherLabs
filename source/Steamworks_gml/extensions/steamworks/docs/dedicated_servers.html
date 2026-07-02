@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" href="img/favicon.ico" />
+  <title>Dedicated servers - Steamworks</title>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/theme_extra.css" />
+  <link href="assets/css/gmext_style.css" rel="stylesheet" />
+</head>
+<body class="wy-body-for-nav" role="document">
+<div class="wy-grid-for-nav">
+  <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+        <a href="." class="icon icon-home"> GMEXT-Steamworks</a>
+      </div>
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+        <ul><li class="toctree-l1"><a class="reference internal" href="home.html">Steamworks Extension</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="guides.html">Setup Guide (IDE/Runtime 2022.6+)</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="general.html">General</a></li></ul>
+        <ul><li class="toctree-l1 current"><a class="reference internal current" href="dedicated_servers.html">Dedicated Servers</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="overlay.html">Overlay</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="leaderboards.html">Leaderboards</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="lobbies.html">Lobbies and Matchmaking</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="achievements.html">Stats and Achievements</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="cloud.html">Cloud</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="dlc.html">DLC</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="ugc.html">UGC</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="social.html">Social</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="inventory.html">Inventory</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="networking.html">Networking</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="input.html">Input</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="music.html">Music</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="timeline.html">Timeline</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="networking_messages.html">Networking Messages</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="networking_sockets.html">Networking Sockets</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li></ul>
+      </div>
+    </div>
+  </nav>
+  <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+    <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+      <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+      <a href=".">GMEXT-Steamworks</a>
+    </nav>
+    <div class="wy-nav-content">
+      <div class="rst-content">
+        <div role="navigation" aria-label="breadcrumbs navigation">
+          <ul class="wy-breadcrumbs">
+            <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+            <li class="breadcrumb-item active">Dedicated Servers</li>
+          </ul>
+          <hr />
+        </div>
+        <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+          <div class="section" itemprop="articleBody">
+<p><a id="top"></a></p>
+<h1 id="dedicated-servers">Dedicated servers</h1>
+<p>
+  The <code>steam_game_server_*</code> API wraps Steam's game-server pipe. It does
+  not require a signed-in desktop Steam user and is separate from the client
+  <code>steam_*</code> lifecycle. Call <code>steam_game_server_update()</code>
+  every Step (or call the regular <code>steam_update()</code>, which pumps both
+  active pipes).
+</p>
+
+<h2>Minimal public server</h2>
+<pre class="highlight"><code class="language-gml">// Create event
+if (!steam_game_server_init(
+    0, 27015, 27016,
+    steam_game_server_mode_authentication_and_secure,
+    "1.0.0.0"))
+{
+    show_error("Steam game-server initialization failed", true);
+}
+
+// These four fields must be set before LogOn.
+steam_game_server_set_product("480"); // Usually your Steam App ID as text
+steam_game_server_set_game_description("My Game");
+steam_game_server_set_mod_dir("mygame");
+steam_game_server_set_dedicated(true);
+
+steam_game_server_set_server_name("My dedicated server");
+steam_game_server_set_map_name("arena_01");
+steam_game_server_set_max_player_count(16);
+steam_game_server_set_password_protected(false);
+steam_game_server_set_game_tags("dedicated,ranked");
+steam_game_server_set_region("");
+steam_game_server_set_advertise_server_active(true);
+
+// Use steam_game_server_log_on(gslt) for a persistent server identity.
+steam_game_server_log_on_anonymous();
+
+// Step event
+steam_game_server_update();
+
+// Clean Up event
+steam_game_server_log_off();
+steam_game_server_shutdown();</code></pre>
+
+<h2>Player authentication</h2>
+<p>
+  A client obtains a session ticket and sends its exact bytes, length, and
+  Steam ID over the game's connection. The server passes them to
+  <code>steam_game_server_begin_auth_session(buffer, size, steam_id)</code>.
+  Admission is complete only after the Steam Async event
+  <code>steam_game_server_validate_auth_ticket_response</code> reports
+  <code>auth_session_response == 0</code>. Always call
+  <code>steam_game_server_end_auth_session(steam_id)</code> when that player
+  leaves.
+</p>
+
+<h2>Steam Async events</h2>
+<table>
+<thead><tr><th><code>event_type</code></th><th>Important fields</th></tr></thead>
+<tbody>
+<tr><td>steam_game_server_connected</td><td>The backend login completed.</td></tr>
+<tr><td>steam_game_server_connect_failure</td><td>result, still_retrying</td></tr>
+<tr><td>steam_game_server_disconnected</td><td>result</td></tr>
+<tr><td>steam_game_server_policy_response</td><td>secure</td></tr>
+<tr><td>steam_game_server_validate_auth_ticket_response</td><td>steam_id, owner_steam_id, auth_session_response</td></tr>
+<tr><td>steam_game_server_user_group_status</td><td>steam_id_user, steam_id_group, member, officer</td></tr>
+<tr><td>steam_game_server_reputation</td><td>success, result, reputation_score, banned and ban details</td></tr>
+<tr><td>steam_game_server_associate_with_clan</td><td>success, result</td></tr>
+<tr><td>steam_game_server_compute_player_compatibility</td><td>success, result and compatibility counts</td></tr>
+<tr><td>steam_game_server_stats_received</td><td>success, result, steam_id_user</td></tr>
+<tr><td>steam_game_server_stats_stored</td><td>success, result, steam_id_user</td></tr>
+<tr><td>steam_game_server_stats_unloaded</td><td>steam_id_user</td></tr>
+</tbody>
+</table>
+
+<h2>Networking and server browser</h2>
+<p>
+  Existing <code>steam_net_sockets_*</code> and
+  <code>steam_net_messages_*</code> functions automatically use the game-server
+  interface while it is active. Their connection/session callbacks are also
+  registered on both Steam pipes.
+</p>
+<p>
+  Normally Steam owns the query port. To share one UDP socket with gameplay,
+  initialize with <code>steam_game_server_query_port_shared</code>, forward
+  incoming query packets to <code>steam_game_server_handle_incoming_packet()</code>,
+  then drain <code>steam_game_server_get_next_outgoing_packet()</code> every
+  frame and send each returned packet to its <code>ip</code>/<code>port</code>.
+</p>
+
+<h2>Server-authoritative stats</h2>
+<p>
+  Request a player's data with
+  <code>steam_game_server_stats_request_user_stats()</code>, wait for
+  <code>steam_game_server_stats_received</code>, then use the get/set functions
+  and finish with <code>steam_game_server_stats_store_user_stats()</code>.
+  Steam only permits writes from official game servers whose IP ranges and
+  stat permissions are configured in Steamworks.
+</p>
+
+<h2>Deployment notes</h2>
+<ul>
+<li>The App ID must be available through Steam launch environment or <code>steam_appid.txt</code> during local testing.</li>
+<li>A GSLT is a secret. Supply it through a protected command-line/configuration channel; never compile it into the game.</li>
+<li>Open the gameplay and query UDP ports in the host firewall/NAT.</li>
+<li>Set required product fields before login and enable advertising only after all browser fields are ready.</li>
+</ul>
+
+<h2 id="api-reference">API reference</h2>
+<p>
+  The following functions expose the Steam game-server lifecycle, browser
+  advertisement, authentication, query packets, reputation, and authoritative
+  player stats.
+</p>
+<h2 id="functions">Functions</h2>
+<ul>
+<li><a href="dedicated_servers.html#steam_game_server_init">steam_game_server_init</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_shutdown">steam_game_server_shutdown</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_update">steam_game_server_update</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_initialised">steam_game_server_initialised</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_log_on">steam_game_server_log_on</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_log_on_anonymous">steam_game_server_log_on_anonymous</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_log_off">steam_game_server_log_off</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_logged_on">steam_game_server_logged_on</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_secure">steam_game_server_secure</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_get_steam_id">steam_game_server_get_steam_id</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_was_restart_requested">steam_game_server_was_restart_requested</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_product">steam_game_server_set_product</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_game_description">steam_game_server_set_game_description</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_mod_dir">steam_game_server_set_mod_dir</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_dedicated">steam_game_server_set_dedicated</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_max_player_count">steam_game_server_set_max_player_count</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_bot_player_count">steam_game_server_set_bot_player_count</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_server_name">steam_game_server_set_server_name</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_map_name">steam_game_server_set_map_name</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_password_protected">steam_game_server_set_password_protected</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_spectator_port">steam_game_server_set_spectator_port</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_spectator_server_name">steam_game_server_set_spectator_server_name</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_clear_all_key_values">steam_game_server_clear_all_key_values</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_key_value">steam_game_server_set_key_value</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_game_tags">steam_game_server_set_game_tags</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_game_data">steam_game_server_set_game_data</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_region">steam_game_server_set_region</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_set_advertise_server_active">steam_game_server_set_advertise_server_active</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_get_auth_session_ticket">steam_game_server_get_auth_session_ticket</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_begin_auth_session">steam_game_server_begin_auth_session</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_end_auth_session">steam_game_server_end_auth_session</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_cancel_auth_ticket">steam_game_server_cancel_auth_ticket</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_user_has_license_for_app">steam_game_server_user_has_license_for_app</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_request_user_group_status">steam_game_server_request_user_group_status</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_create_unauthenticated_user_connection">steam_game_server_create_unauthenticated_user_connection</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_update_user_data">steam_game_server_update_user_data</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_get_public_ip">steam_game_server_get_public_ip</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_handle_incoming_packet">steam_game_server_handle_incoming_packet</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_get_next_outgoing_packet">steam_game_server_get_next_outgoing_packet</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_associate_with_clan">steam_game_server_associate_with_clan</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_compute_new_player_compatibility">steam_game_server_compute_new_player_compatibility</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_get_server_reputation">steam_game_server_get_server_reputation</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_request_user_stats">steam_game_server_stats_request_user_stats</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_get_user_stat_int">steam_game_server_stats_get_user_stat_int</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_get_user_stat_float">steam_game_server_stats_get_user_stat_float</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_get_user_achievement">steam_game_server_stats_get_user_achievement</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_set_user_stat_int">steam_game_server_stats_set_user_stat_int</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_set_user_stat_float">steam_game_server_stats_set_user_stat_float</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_update_user_avg_rate_stat">steam_game_server_stats_update_user_avg_rate_stat</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_set_user_achievement">steam_game_server_stats_set_user_achievement</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_clear_user_achievement">steam_game_server_stats_clear_user_achievement</a></li>
+<li><a href="dedicated_servers.html#steam_game_server_stats_store_user_stats">steam_game_server_stats_store_user_stats</a></li>
+</ul>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="steam_game_server_init">steam_game_server_init</h1>
+<p>Initializes the independent Steam game-server API. <code>ip</code> is an IPv4
+  address in host byte order; use <code>0</code> to bind automatically.
+  <code>game_port</code> is the UDP gameplay port. <code>query_port</code> is
+  the Steam server-browser port, or
+  <code>steam_game_server_query_port_shared</code> when queries share the
+  gameplay socket. <code>server_mode</code> selects no authentication,
+  authentication, or authentication plus VAC. <code>version</code> should use
+  the <code>x.x.x.x</code> form and must match the current version configured
+  in Steamworks. Returns <code>true</code> on successful initialization.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_init(ip, game_port, query_port, server_mode, version)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>ip</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>IPv4 in host byte order, normally 0.</td>
+</tr>
+<tr>
+<td>game_port</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>gameplay UDP port, 0–65535.</td>
+</tr>
+<tr>
+<td>query_port</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>query UDP port, 0–65535, or <code>steam_game_server_query_port_shared</code>.</td>
+</tr>
+<tr>
+<td>server_mode</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>a <code>steam_game_server_mode_*</code> constant.</td>
+</tr>
+<tr>
+<td>version</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>server version in <code>x.x.x.x</code> form.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: initialization succeeded.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_init(0, 27015, 27016, steam_game_server_mode_authentication_and_secure, "1.0.0.0");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_shutdown">steam_game_server_shutdown</h1>
+<p>Cancels outstanding game-server call results, logs the server API out and
+  releases its Steam interfaces. It is safe to call during cleanup even when
+  initialization failed. Returns <code>true</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_shutdown()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_shutdown();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_update">steam_game_server_update</h1>
+<p>Pumps callbacks for the game-server Steam pipe. Call once per Step unless
+  the regular <code>steam_update()</code> is already called. Returns
+  <code>true</code> while the game-server API is initialized.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_update()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: server API is initialized.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_update();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_initialised">steam_game_server_initialised</h1>
+<p>Returns whether <code>steam_game_server_init()</code> completed successfully
+  and the game-server API has not subsequently been shut down.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_initialised()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_initialised();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_log_on">steam_game_server_log_on</h1>
+<p>Starts an asynchronous login using a Game Server Login Token (GSLT). Keep
+  <code>token</code> secret. Returning <code>true</code> only means the request
+  was submitted; wait for <code>steam_game_server_connected</code> or
+  <code>steam_game_server_connect_failure</code>.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_log_on(token)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>token</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>secret GSLT.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: request submitted.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_connected" or "steam_game_server_connect_failure".</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code; present on failure.</td>
+</tr>
+<tr>
+<td>still_retrying</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether Steam is continuing login attempts; present on failure.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_log_on(global.gslt);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_log_on_anonymous">steam_game_server_log_on_anonymous</h1>
+<p>Starts an asynchronous anonymous server login. This is suitable for servers
+  that do not need a persistent game-server account. Wait for the connection
+  event. Returns whether the call was submitted to an initialized interface.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_log_on_anonymous()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: request submitted.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_connected" or "steam_game_server_connect_failure".</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code; present on failure.</td>
+</tr>
+<tr>
+<td>still_retrying</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether Steam is continuing login attempts; present on failure.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_log_on_anonymous();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_log_off">steam_game_server_log_off</h1>
+<p>Begins logging the game server out of Steam while leaving the API initialized.
+  Returns whether a game-server interface was available.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_log_off()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: interface was available.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_log_off();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_logged_on">steam_game_server_logged_on</h1>
+<p>Returns whether the game server is currently logged on to the Steam backend.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_logged_on()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: currently logged on.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_logged_on();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_secure">steam_game_server_secure</h1>
+<p>Returns whether Steam currently considers the server secure/VAC protected.
+  The authoritative policy notification is
+  <code>steam_game_server_policy_response</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_secure()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: currently considered secure.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_secure();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_get_steam_id">steam_game_server_get_steam_id</h1>
+<p>Returns the server's 64-bit Steam ID. Before login completes the result may
+  be <code>0</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_get_steam_id()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a>: server Steam ID, or 0.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_get_steam_id();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_was_restart_requested">steam_game_server_was_restart_requested</h1>
+<p>Returns <code>true</code> once when Steam's master server asks this instance
+  to restart, usually because its advertised version is outdated.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_was_restart_requested()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: one-shot restart request.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_was_restart_requested();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_product">steam_game_server_set_product</h1>
+<p>Sets the product identifier used by the master server for version checks.
+  This is normally the game's Steam App ID represented as text.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_product(product)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>product</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>product identifier, normally the App ID as text.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_product("480");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_game_description">steam_game_server_set_game_description</h1>
+<p>Sets the human-readable game description reported to the server browser.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_game_description(description)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>description</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>public game description.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_game_description("My Game");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_mod_dir">steam_game_server_set_mod_dir</h1>
+<p>Sets the mod/game directory identifier. Pass an empty string for an original
+  game rather than a mod.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_mod_dir(mod_dir)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>mod_dir</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>mod directory identifier, or an empty string.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_mod_dir("mygame");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_dedicated">steam_game_server_set_dedicated</h1>
+<p>Marks the process as a dedicated server. Pass <code>true</code> for a
+  headless dedicated-server build.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_dedicated(dedicated)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>dedicated</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a></td>
+<td>dedicated-server flag.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_dedicated(true);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_max_player_count">steam_game_server_set_max_player_count</h1>
+<p>Sets the maximum player count displayed in browser and query responses.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_max_player_count(count)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>count</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>maximum number of players.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_max_player_count(16);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_bot_player_count">steam_game_server_set_bot_player_count</h1>
+<p>Sets the number of bot players currently reported by the server.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_bot_player_count(count)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>count</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>current number of bots.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_bot_player_count(2);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_server_name">steam_game_server_set_server_name</h1>
+<p>Sets the public server name displayed in the Steam server browser.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_server_name(name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>public server name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_server_name("My dedicated server");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_map_name">steam_game_server_set_map_name</h1>
+<p>Sets the current map or level name advertised by the server.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_map_name(map_name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>map_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>current map/level name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_map_name("arena_01");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_password_protected">steam_game_server_set_password_protected</h1>
+<p>Controls the password-protected flag shown in browser results. This does not
+  implement password checking; the game must enforce the password itself.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_password_protected(protected)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>protected</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a></td>
+<td>whether a password is required.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_password_protected(false);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_spectator_port">steam_game_server_set_spectator_port</h1>
+<p>Advertises the UDP spectator service port. Pass <code>0</code> when the
+  server has no spectator service.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_spectator_port(port)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>port</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>spectator UDP port, or 0.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_spectator_port(27020);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_spectator_server_name">steam_game_server_set_spectator_server_name</h1>
+<p>Sets the spectator server name advertised when a spectator port is active.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_spectator_server_name(name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>public spectator-server name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_spectator_server_name("My dedicated server");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_clear_all_key_values">steam_game_server_clear_all_key_values</h1>
+<p>Removes all custom key/value rules returned by Steam server-rule queries.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_clear_all_key_values()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_clear_all_key_values();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_key_value">steam_game_server_set_key_value</h1>
+<p>Creates or replaces a custom server rule. Both <code>key</code> and
+  <code>value</code> are strings visible to server-browser rule queries.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_key_value(key, value)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>rule name.</td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>rule value.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_key_value("game_mode", "ranked");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_game_tags">steam_game_server_set_game_tags</h1>
+<p>Sets the comma-separated game tags used by matchmaking and browser filters.
+  Keep the string within Steam's game-server tag limit.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_game_tags(tags)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>tags</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>comma-separated browser tags.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_game_tags("dedicated,ranked");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_game_data">steam_game_server_set_game_data</h1>
+<p>Sets opaque game-specific filter data advertised to Steam. Keep the string
+  within Steam's game-data limit.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_game_data(data)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>data</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>game-specific browser filter data.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_game_data("mode=ranked");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_region">steam_game_server_set_region</h1>
+<p>Sets the master-server region code. An empty string advertises the world/default
+  region.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_region(region)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>region</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>master-server region code, or empty.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_region("");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_set_advertise_server_active">steam_game_server_set_advertise_server_active</h1>
+<p>Enables or disables master-server listing, heartbeat traffic, browser pings,
+  and LAN discovery responses. Configure all advertised properties before
+  enabling it.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_set_advertise_server_active(active)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>active</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a></td>
+<td>enable listing, heartbeat, and query responses.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_set_advertise_server_active(true);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_get_auth_session_ticket">steam_game_server_get_auth_session_ticket</h1>
+<p>Creates a server auth ticket and writes at most <code>max_size</code> bytes
+  into the GameMaker buffer. Returns a struct containing
+  <code>success</code>, <code>ticket_handle</code>, and
+  <code>ticket_size</code>. Send only the first <code>ticket_size</code> bytes
+  and later release the handle with
+  <code>steam_game_server_cancel_auth_ticket()</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_get_auth_session_ticket(buffer, max_size)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>buffer</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>destination GameMaker buffer ID.</td>
+</tr>
+<tr>
+<td>max_size</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>maximum ticket bytes to write.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a>: <code>{ success, ticket_handle, ticket_size }</code>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_get_auth_session_ticket(ticket_buffer, buffer_get_size(ticket_buffer));</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_begin_auth_session">steam_game_server_begin_auth_session</h1>
+<p>Begins validating a player's ticket. <code>buffer</code> contains the exact
+  bytes received from that player, <code>ticket_size</code> is their length,
+  and <code>steam_id</code> is the claimed identity. Returns a
+  <code>steam_game_server_begin_auth_*</code> value for immediate validation.
+  An immediate OK is not final admission: wait for
+  <code>steam_game_server_validate_auth_ticket_response</code>.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_begin_auth_session(buffer, ticket_size, steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>buffer</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>buffer containing ticket bytes.</td>
+</tr>
+<tr>
+<td>ticket_size</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>number of valid bytes.</td>
+</tr>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>claimed player Steam ID.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a>: a <code>steam_game_server_begin_auth_*</code> value.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_validate_auth_ticket_response".</td>
+</tr>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The player whose ticket was validated.</td>
+</tr>
+<tr>
+<td>owner_steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The license owner's Steam ID; differs for borrowed copies.</td>
+</tr>
+<tr>
+<td>auth_session_response</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>A steam_game_server_auth_response_* value.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_begin_auth_session(auth_buffer, ticket_size, player_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_end_auth_session">steam_game_server_end_auth_session</h1>
+<p>Stops tracking an authenticated player. Call exactly once when the player
+  disconnects or after rejecting an authentication callback.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_end_auth_session(steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player whose session ends.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_end_auth_session(player_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_cancel_auth_ticket">steam_game_server_cancel_auth_ticket</h1>
+<p>Invalidates a ticket previously created by
+  <code>steam_game_server_get_auth_session_ticket()</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_cancel_auth_ticket(ticket_handle)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>ticket_handle</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>handle returned with a generated ticket.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_cancel_auth_ticket(ticket.ticket_handle);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_user_has_license_for_app">steam_game_server_user_has_license_for_app</h1>
+<p>Checks whether an authenticated user owns the specified app or DLC. Returns
+  one of <code>steam_game_server_license_has_license</code>,
+  <code>steam_game_server_license_does_not_have_license</code>, or
+  <code>steam_game_server_license_no_auth</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_user_has_license_for_app(steam_id, app_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>authenticated player.</td>
+</tr>
+<tr>
+<td>app_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>app or DLC App ID.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a>: a <code>steam_game_server_license_*</code> value.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_user_has_license_for_app(player_steam_id, steam_get_app_id());</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_request_user_group_status">steam_game_server_request_user_group_status</h1>
+<p>Asynchronously checks Steam-group membership and officer status. Returns
+  whether the request was accepted; the result arrives as
+  <code>steam_game_server_user_group_status</code>.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_request_user_group_status(user_steam_id, group_steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>user_steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>group_steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>clan/group.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: request submitted.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_user_group_status".</td>
+</tr>
+<tr>
+<td>steam_id_user</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The queried player.</td>
+</tr>
+<tr>
+<td>steam_id_group</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The queried group.</td>
+</tr>
+<tr>
+<td>member</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether the player is a member.</td>
+</tr>
+<tr>
+<td>officer</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether the player is an officer.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_request_user_group_status(player_steam_id, group_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_create_unauthenticated_user_connection">steam_game_server_create_unauthenticated_user_connection</h1>
+<p>Creates a temporary Steam ID for a bot or other unauthenticated participant
+  so it can appear in the server player list. Returns <code>0</code> on
+  failure. End the session when that participant leaves.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_create_unauthenticated_user_connection()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a>: temporary bot Steam ID, or 0.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_create_unauthenticated_user_connection();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_update_user_data">steam_game_server_update_user_data</h1>
+<p>Updates the name and unsigned integer score displayed for a connected player
+  in browser/player queries. Returns <code>false</code> when Steam is not
+  tracking that user.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_update_user_data(steam_id, player_name, score)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>tracked player.</td>
+</tr>
+<tr>
+<td>player_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>displayed name.</td>
+</tr>
+<tr>
+<td>score</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real/Int64</a></td>
+<td>unsigned integer score.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_update_user_data(player_steam_id, player_name, player_score);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_get_public_ip">steam_game_server_get_public_ip</h1>
+<p>Returns Steam's view of the server's public address as
+  <code>{ is_set, type, ipv4, address }</code>. IPv4 numeric values use host
+  byte order. The address may be unset until the backend connection is ready.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_get_public_ip()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a>: <code>{ is_set, type, ipv4, address }</code>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_get_public_ip();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_handle_incoming_packet">steam_game_server_handle_incoming_packet</h1>
+<p>Used only with <code>steam_game_server_query_port_shared</code>. Pass query
+  packets beginning with <code>0xFFFFFFFF</code>, their source IPv4 address in
+  host byte order, and source UDP port. Returns whether Steam consumed the
+  packet.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_handle_incoming_packet(buffer, size, source_ip, source_port)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>buffer</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>source GameMaker buffer ID.</td>
+</tr>
+<tr>
+<td>size</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>valid packet byte count.</td>
+</tr>
+<tr>
+<td>source_ip</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>IPv4 in host byte order.</td>
+</tr>
+<tr>
+<td>source_port</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>source UDP port.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: packet consumed by Steam.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_handle_incoming_packet(query_buffer, packet_size, source_ip, source_port);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_get_next_outgoing_packet">steam_game_server_get_next_outgoing_packet</h1>
+<p>Drains one server-browser response in shared-query-port mode. Returns
+  <code>{ size, ip, port }</code> and writes the payload to
+  <code>buffer</code>. Send the first <code>size</code> bytes over UDP, then
+  call repeatedly until <code>size</code> is <code>0</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_get_next_outgoing_packet(buffer, max_size)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>buffer</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>destination GameMaker buffer ID.</td>
+</tr>
+<tr>
+<td>max_size</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>maximum response bytes.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a>: <code>{ size, ip, port }</code>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_get_next_outgoing_packet(query_buffer, buffer_get_size(query_buffer));</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_associate_with_clan">steam_game_server_associate_with_clan</h1>
+<p>Asynchronously associates this server with a Steam clan/group for player
+  compatibility calculations. Returns whether a call was started; completion
+  arrives as <code>steam_game_server_associate_with_clan</code>.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_associate_with_clan(clan_steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>clan_steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>clan/group Steam ID.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: async call started.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_associate_with_clan".</td>
+</tr>
+<tr>
+<td>success</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether the request succeeded.</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_associate_with_clan(clan_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_compute_new_player_compatibility">steam_game_server_compute_new_player_compatibility</h1>
+<p>Asynchronously calculates how many connected players or associated clan
+  members do not want to play with the candidate, and vice versa. Completion
+  arrives as <code>steam_game_server_compute_player_compatibility</code>.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_compute_new_player_compatibility(steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>candidate player.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: async call started.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_compute_player_compatibility".</td>
+</tr>
+<tr>
+<td>success</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether the request succeeded.</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code.</td>
+</tr>
+<tr>
+<td>players_that_dont_like_candidate</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Connected players who avoid the candidate.</td>
+</tr>
+<tr>
+<td>players_candidate_doesnt_like</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Connected players avoided by the candidate.</td>
+</tr>
+<tr>
+<td>clan_players_that_dont_like_candidate</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Clan players who avoid the candidate.</td>
+</tr>
+<tr>
+<td>candidate_steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The candidate player.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_compute_new_player_compatibility(player_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_get_server_reputation">steam_game_server_get_server_reputation</h1>
+<p>Requests the server's reputation and master-server ban state. Returns whether
+  the call was started. The <code>steam_game_server_reputation</code> event
+  includes score, ban address/port, game ID, and expiry time.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_get_server_reputation()</code></pre>
+</blockquote>
+
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>: async call started.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_reputation".</td>
+</tr>
+<tr>
+<td>success</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether reputation was retrieved.</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code.</td>
+</tr>
+<tr>
+<td>reputation_score</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Current server reputation.</td>
+</tr>
+<tr>
+<td>banned</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether the server address is master-server banned.</td>
+</tr>
+<tr>
+<td>banned_ip</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Banned IPv4 address in host byte order.</td>
+</tr>
+<tr>
+<td>banned_port</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Banned server port.</td>
+</tr>
+<tr>
+<td>banned_game_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>Game ID associated with the ban.</td>
+</tr>
+<tr>
+<td>ban_expires</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Ban expiry as a Unix timestamp.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_get_server_reputation();</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_request_user_stats">steam_game_server_stats_request_user_stats</h1>
+<p>Downloads the user's current stats and achievements. Returns a Steam API call
+  handle, or <code>0</code> if no call was created. Wait for
+  <code>steam_game_server_stats_received</code>.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_request_user_stats(steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a>: Steam API call handle, or 0.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_stats_received".</td>
+</tr>
+<tr>
+<td>success</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether stats were retrieved.</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code.</td>
+</tr>
+<tr>
+<td>steam_id_user</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The requested player.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_request_user_stats(player_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_get_user_stat_int">steam_game_server_stats_get_user_stat_int</h1>
+<p>Reads a cached 32-bit integer stat after a successful request. Returns
+  <code>{ success, value }</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_get_user_stat_int(steam_id, stat_name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>stat_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>Steamworks stat API name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a>: <code>{ success, value }</code>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_get_user_stat_int(player_steam_id, "kills");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_get_user_stat_float">steam_game_server_stats_get_user_stat_float</h1>
+<p>Reads a cached floating-point stat after a successful request. Returns
+  <code>{ success, value }</code>.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_get_user_stat_float(steam_id, stat_name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>stat_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>Steamworks stat API name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a>: <code>{ success, value }</code>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_get_user_stat_float(player_steam_id, "kills");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_get_user_achievement">steam_game_server_stats_get_user_achievement</h1>
+<p>Reads a cached achievement state. Returns
+  <code>{ success, achieved }</code>; check <code>success</code> separately
+  because an unlocked value of <code>false</code> is valid.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_get_user_achievement(steam_id, achievement_name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>achievement_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>Steamworks achievement API name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a>: <code>{ success, achieved }</code>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_get_user_achievement(player_steam_id, "FIRST_WIN");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_set_user_stat_int">steam_game_server_stats_set_user_stat_int</h1>
+<p>Stages a 32-bit integer stat update in the server cache. Returns whether Steam
+  accepted the local change; call the store function to upload it.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_set_user_stat_int(steam_id, stat_name, value)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>stat_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>integer stat API name.</td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>signed 32-bit integer value.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_set_user_stat_int(player_steam_id, "kills", 25);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_set_user_stat_float">steam_game_server_stats_set_user_stat_float</h1>
+<p>Stages a floating-point stat update. Returns whether Steam accepted the local
+  change; call the store function to upload it.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_set_user_stat_float(steam_id, stat_name, value)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>stat_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>float stat API name.</td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>floating-point value.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_set_user_stat_float(player_steam_id, "kills", 12.5);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_update_user_avg_rate_stat">steam_game_server_stats_update_user_avg_rate_stat</h1>
+<p>Updates an average-rate stat using <code>count</code> accumulated during
+  <code>session_length</code> seconds. Returns whether the cached update was
+  accepted.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_update_user_avg_rate_stat(steam_id, stat_name, count, session_length)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>stat_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>average-rate stat API name.</td>
+</tr>
+<tr>
+<td>count</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>amount accumulated this session.</td>
+</tr>
+<tr>
+<td>session_length</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>session duration in seconds.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_update_user_avg_rate_stat(player_steam_id, "kills", 10, 60);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_set_user_achievement">steam_game_server_stats_set_user_achievement</h1>
+<p>Stages an achievement unlock. Returns whether it was accepted locally; store
+  the user's stats to commit it.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_set_user_achievement(steam_id, achievement_name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>achievement_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>achievement API name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_set_user_achievement(player_steam_id, "FIRST_WIN");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_clear_user_achievement">steam_game_server_stats_clear_user_achievement</h1>
+<p>Stages clearing an achievement. This is normally intended for testing or
+  explicitly resettable achievements. Store stats to commit the change.</p>
+
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_clear_user_achievement(steam_id, achievement_name)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player.</td>
+</tr>
+<tr>
+<td>achievement_name</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>achievement API name.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Bool</a>.</p></blockquote>
+<p><br></p>
+
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_clear_user_achievement(player_steam_id, "FIRST_WIN");</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+<h1 id="steam_game_server_stats_store_user_stats">steam_game_server_stats_store_user_stats</h1>
+<p>Uploads all staged stat and achievement changes for the user. Returns a Steam
+  API call handle, or <code>0</code> on failure. Completion arrives as
+  <code>steam_game_server_stats_stored</code>; an invalid-parameter result means
+  Steam rejected one or more values and refreshed the local cache.</p>
+
+<p>This function operates asynchronously. Its final result is delivered through
+the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_game_server_stats_store_user_stats(steam_id)</code></pre>
+</blockquote>
+
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>steam_id</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>player whose pending changes are uploaded.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a>: Steam API call handle, or 0.</p></blockquote>
+<p><br></p>
+
+<p><strong>Triggers:</strong></p>
+<blockquote>
+<p><a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Properties/Async_Events/Steam.htm">Steam Async Event</a></p>
+</blockquote>
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
+<td>event_type</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>The string value "steam_game_server_stats_stored".</td>
+</tr>
+<tr>
+<td>success</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Boolean</a></td>
+<td>Whether stats were stored.</td>
+</tr>
+<tr>
+<td>result</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Steam result code.</td>
+</tr>
+<tr>
+<td>steam_id_user</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
+<td>The affected player.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_stats_store_user_stats(player_steam_id);</code></pre>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script src="js/jquery-3.6.0.min.js"></script>
+<script>var base_url = ".";</script>
+<script src="js/theme_extra.js"></script>
+<script src="js/theme.js"></script>
+<script src="assets/js/gmext_script.js"></script>
+<script>jQuery(function () { SphinxRtdTheme.Navigation.enable(true); });</script>
+</body>
+</html>

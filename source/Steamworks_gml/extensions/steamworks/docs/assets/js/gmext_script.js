@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', function() {
+
+    // The checked-in documentation consists of pre-rendered MkDocs pages, so
+    // each page has its own copy of the navigation. Keep the dedicated-server
+    // entry available even on pages generated before that module was added.
+    var menu = document.querySelector('.wy-menu.wy-menu-vertical');
+    if (menu && !menu.querySelector('a[href="dedicated_servers.html"]')) {
+        var generalLink = menu.querySelector('a[href="general.html"]');
+        var list = document.createElement('ul');
+        list.innerHTML = '<li class="toctree-l1"><a class="reference internal" href="dedicated_servers.html">Dedicated Servers</a></li>';
+        if (generalLink && generalLink.closest('ul')) {
+            generalLink.closest('ul').insertAdjacentElement('afterend', list);
+        } else {
+            menu.appendChild(list);
+        }
+    }
     
     // Top left link should point ot the github page
     var link = document.querySelector('a.icon.icon-home');

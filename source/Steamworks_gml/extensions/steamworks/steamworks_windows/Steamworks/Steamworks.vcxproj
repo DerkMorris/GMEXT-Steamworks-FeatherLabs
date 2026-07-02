@@ -43,6 +43,7 @@
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_friends.cpp" />
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_funcs.cpp" />
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_glue.cpp" />
+    <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_game_server.cpp" />
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_init.cpp" />
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_init_new.cpp" />
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_input.cpp" />

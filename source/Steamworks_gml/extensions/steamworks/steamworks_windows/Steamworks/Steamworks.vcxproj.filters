@@ -66,6 +66,9 @@
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_glue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_game_server.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\steamworks_cpp\GMLSteam\steam_funcs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

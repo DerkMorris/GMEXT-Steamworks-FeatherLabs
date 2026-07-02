@@ -81,6 +81,7 @@
 		6A2A829B2934DAD3002B2CE5 /* steam_apps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A2A827C2934DAD3002B2CE5 /* steam_apps.cpp */; };
 		6A2A829C2934DAD3002B2CE5 /* steam_controller.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A2A827D2934DAD3002B2CE5 /* steam_controller.cpp */; };
 		6A2A829D2934DAD3002B2CE5 /* steam_callbacks.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A2A827E2934DAD3002B2CE5 /* steam_callbacks.cpp */; };
+		A1B2C3D40102030405060708 /* steam_game_server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D50102030405060708 /* steam_game_server.cpp */; };
 		6A2A829E2934DAD3002B2CE5 /* steam_common.h in Headers */ = {isa = PBXBuildFile; fileRef = 6A2A827F2934DAD3002B2CE5 /* steam_common.h */; };
 		6A2A829F2934DAD3002B2CE5 /* steam_userstats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A2A82802934DAD3002B2CE5 /* steam_userstats.cpp */; };
 		6A2A82A02934DAD3002B2CE5 /* steam_callbacks.h in Headers */ = {isa = PBXBuildFile; fileRef = 6A2A82812934DAD3002B2CE5 /* steam_callbacks.h */; };
@@ -191,6 +192,7 @@
 		6A2A827C2934DAD3002B2CE5 /* steam_apps.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = steam_apps.cpp; sourceTree = "<group>"; };
 		6A2A827D2934DAD3002B2CE5 /* steam_controller.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = steam_controller.cpp; sourceTree = "<group>"; };
 		6A2A827E2934DAD3002B2CE5 /* steam_callbacks.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = steam_callbacks.cpp; sourceTree = "<group>"; };
+		A1B2C3D50102030405060708 /* steam_game_server.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = steam_game_server.cpp; sourceTree = "<group>"; };
 		6A2A827F2934DAD3002B2CE5 /* steam_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = steam_common.h; sourceTree = "<group>"; };
 		6A2A82802934DAD3002B2CE5 /* steam_userstats.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = steam_userstats.cpp; sourceTree = "<group>"; };
 		6A2A82812934DAD3002B2CE5 /* steam_callbacks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = steam_callbacks.h; sourceTree = "<group>"; };
@@ -321,6 +323,7 @@
 				6A2A82862934DAD3002B2CE5 /* gml_glue.h */,
 				6A2A827C2934DAD3002B2CE5 /* steam_apps.cpp */,
 				6A2A827E2934DAD3002B2CE5 /* steam_callbacks.cpp */,
+				A1B2C3D50102030405060708 /* steam_game_server.cpp */,
 				6A2A82812934DAD3002B2CE5 /* steam_callbacks.h */,
 				6A2A827F2934DAD3002B2CE5 /* steam_common.h */,
 				6A2A827D2934DAD3002B2CE5 /* steam_controller.cpp */,
@@ -499,6 +502,7 @@
 				6A2A828E2934DAD3002B2CE5 /* gml_glue.cpp in Sources */,
 				6A2A82A12934DAD3002B2CE5 /* steam_remotestorage.cpp in Sources */,
 				6A2A829D2934DAD3002B2CE5 /* steam_callbacks.cpp in Sources */,
+				A1B2C3D40102030405060708 /* steam_game_server.cpp in Sources */,
 				6ACC18882F7E7EAA00A13300 /* steam_networking_sockets.cpp in Sources */,
 				6ACC18892F7E7EAA00A13300 /* steam_networking_messages.cpp in Sources */,
 				6A2A82942934DAD3002B2CE5 /* steam_utils.cpp in Sources */,

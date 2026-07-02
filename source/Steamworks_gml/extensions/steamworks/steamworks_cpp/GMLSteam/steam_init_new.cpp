@@ -1,6 +1,7 @@
 
 #include "pch.h"
 #include "steam_api.h"
+#include "steam_gameserver.h"
 #include "Extension_Interface.h"
 #include "YYRValue.h"
 #include "steam_common.h"
@@ -21,15 +22,20 @@ int getAsyncRequestInd()
 
 YYEXPORT void steam_update(RValue& Result, CInstance* selfinst, CInstance* otherinst, int argc, RValue* arg)
 {
-	if (!steam_is_initialised)
+	if (!steam_is_initialised && !steam_game_server_is_initialised)
 	{
 		Result.kind = VALUE_REAL;
 		Result.val = 0;
 		return;
 	}
 
-	SteamAPI_RunCallbacks();
-	Steam_UserStats_Process();
+	if (steam_is_initialised)
+	{
+		SteamAPI_RunCallbacks();
+		Steam_UserStats_Process();
+	}
+	if (steam_game_server_is_initialised)
+		SteamGameServer_RunCallbacks();
 
 	Result.kind = VALUE_REAL;
 	Result.val = 1;
@@ -197,7 +203,7 @@ YYEXPORT void steam_is_subscribed(RValue& Result, CInstance* selfinst, CInstance
 
 YYEXPORT void steam_shutdown(RValue& Result, CInstance* selfinst, CInstance* otherinst, int argc, RValue* arg)
 {
-	if (!steam_is_initialised)
+	if (!steam_is_initialised && !steam_game_server_is_initialised)
 	{
 		Result.kind = VALUE_REAL;
 		Result.val = 0;
@@ -212,7 +218,19 @@ YYEXPORT void steam_shutdown(RValue& Result, CInstance* selfinst, CInstance* oth
 		tracef("Steam Input auto-shutdown completed.");
 	}
 
-	SteamAPI_Shutdown();
+	if (steam_game_server_is_initialised)
+	{
+		SteamGameServer_Shutdown();
+		steam_game_server_is_initialised = false;
+	}
+	if (steam_is_initialised)
+	{
+		SteamAPI_Shutdown();
+		steam_is_initialised = false;
+	}
+
+	Result.kind = VALUE_BOOL;
+	Result.val = true;
 }
 
 //dllg void Steam_Json_Test() {

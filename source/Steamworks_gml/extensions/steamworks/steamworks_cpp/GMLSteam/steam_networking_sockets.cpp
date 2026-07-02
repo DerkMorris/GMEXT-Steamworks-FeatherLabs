@@ -6,23 +6,26 @@
 #include "steam_common.h"
 #include <atomic>
 
+#define SteamNetworkingSockets SWSteamNetworkingSockets
+
 class GMNetSocketsCallbackHandler
 {
 public:
     GMNetSocketsCallbackHandler() :
-        m_CallbackConnectionStatusChanged(this, &GMNetSocketsCallbackHandler::OnConnectionStatusChanged),
-        m_CallbackAuthenticationStatusChanged(this, &GMNetSocketsCallbackHandler::OnAuthenticationStatusChanged)
+        m_ClientConnectionStatusChanged(this, &GMNetSocketsCallbackHandler::OnConnectionStatusChanged),
+        m_ServerConnectionStatusChanged(this, &GMNetSocketsCallbackHandler::OnConnectionStatusChanged),
+        m_ClientAuthenticationStatusChanged(this, &GMNetSocketsCallbackHandler::OnAuthenticationStatusChanged),
+        m_ServerAuthenticationStatusChanged(this, &GMNetSocketsCallbackHandler::OnAuthenticationStatusChanged)
     {}
 
-    STEAM_CALLBACK(GMNetSocketsCallbackHandler,
-        OnConnectionStatusChanged,
-        SteamNetConnectionStatusChangedCallback_t,
-        m_CallbackConnectionStatusChanged);
+    void OnConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
+    void OnAuthenticationStatusChanged(SteamNetAuthenticationStatus_t* status);
 
-    STEAM_CALLBACK(GMNetSocketsCallbackHandler,
-        OnAuthenticationStatusChanged,
-        SteamNetAuthenticationStatus_t,
-        m_CallbackAuthenticationStatusChanged);
+private:
+    CCallback<GMNetSocketsCallbackHandler, SteamNetConnectionStatusChangedCallback_t> m_ClientConnectionStatusChanged;
+    CCallback<GMNetSocketsCallbackHandler, SteamNetConnectionStatusChangedCallback_t, true> m_ServerConnectionStatusChanged;
+    CCallback<GMNetSocketsCallbackHandler, SteamNetAuthenticationStatus_t> m_ClientAuthenticationStatusChanged;
+    CCallback<GMNetSocketsCallbackHandler, SteamNetAuthenticationStatus_t, true> m_ServerAuthenticationStatusChanged;
 };
 
 static GMNetSocketsCallbackHandler g_NetSocketsCallbacks;

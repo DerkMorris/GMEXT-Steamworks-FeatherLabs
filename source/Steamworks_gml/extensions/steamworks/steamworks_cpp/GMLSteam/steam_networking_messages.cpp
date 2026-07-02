@@ -5,6 +5,7 @@
 #include "YYRValue.h"
 #include "steam_common.h"
 
+#define SteamNetworkingMessages SWSteamNetworkingMessages
 
 static SteamNetworkingIdentity g_lastMsgIdentity;
 static int g_lastMsgSize = 0;
@@ -14,11 +15,20 @@ static int g_lastMsgSize = 0;
 class CSteamNetMessagesHandler
 {
 public:
-    CSteamNetMessagesHandler() {}
+    CSteamNetMessagesHandler() :
+        m_ClientSessionRequest(this, &CSteamNetMessagesHandler::OnSessionRequest),
+        m_ServerSessionRequest(this, &CSteamNetMessagesHandler::OnSessionRequest),
+        m_ClientSessionFailed(this, &CSteamNetMessagesHandler::OnSessionFailed),
+        m_ServerSessionFailed(this, &CSteamNetMessagesHandler::OnSessionFailed)
+    {}
 
 private:
-    STEAM_CALLBACK(CSteamNetMessagesHandler, OnSessionRequest, SteamNetworkingMessagesSessionRequest_t);
-    STEAM_CALLBACK(CSteamNetMessagesHandler, OnSessionFailed, SteamNetworkingMessagesSessionFailed_t);
+    void OnSessionRequest(SteamNetworkingMessagesSessionRequest_t* pInfo);
+    void OnSessionFailed(SteamNetworkingMessagesSessionFailed_t* pInfo);
+    CCallback<CSteamNetMessagesHandler, SteamNetworkingMessagesSessionRequest_t> m_ClientSessionRequest;
+    CCallback<CSteamNetMessagesHandler, SteamNetworkingMessagesSessionRequest_t, true> m_ServerSessionRequest;
+    CCallback<CSteamNetMessagesHandler, SteamNetworkingMessagesSessionFailed_t> m_ClientSessionFailed;
+    CCallback<CSteamNetMessagesHandler, SteamNetworkingMessagesSessionFailed_t, true> m_ServerSessionFailed;
 };
 
 static CSteamNetMessagesHandler* g_pNetMsgHandler = nullptr;
