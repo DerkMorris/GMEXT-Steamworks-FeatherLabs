@@ -49,7 +49,23 @@
 <h1 id="feather-labs-misc">Feather Labs Misc</h1>
 <p>This module contains platform utilities supplied by Feather Labs that are not part of the Steamworks API.</p>
 <h2 id="functions">Functions</h2>
-<ul><li><a href="feather_labs_misc.html#network_get_local_ipv4_addresses">network_get_local_ipv4_addresses</a></li></ul>
+<ul>
+<li><a href="feather_labs_misc.html#network_get_local_ipv4_addresses">network_get_local_ipv4_addresses</a></li>
+<li><a href="feather_labs_misc.html#network_ipv4_to_number">network_ipv4_to_number</a></li>
+<li><a href="feather_labs_misc.html#console_open">console_open</a></li>
+<li><a href="feather_labs_misc.html#console_is_open">console_is_open</a></li>
+<li><a href="feather_labs_misc.html#console_write_line">console_write_line</a></li>
+<li><a href="feather_labs_misc.html#console_log">console_log</a></li>
+<li><a href="feather_labs_misc.html#console_clear">console_clear</a></li>
+<li><a href="feather_labs_misc.html#console_set_prompt">console_set_prompt</a></li>
+<li><a href="feather_labs_misc.html#console_set_text_color">console_set_text_color</a></li>
+<li><a href="feather_labs_misc.html#console_set_background_color">console_set_background_color</a></li>
+<li><a href="feather_labs_misc.html#console_reset_color">console_reset_color</a></li>
+<li><a href="feather_labs_misc.html#console_write_line_colored">console_write_line_colored</a></li>
+<li><a href="feather_labs_misc.html#console_read_line">console_read_line</a></li>
+<li><a href="feather_labs_misc.html#console_set_title">console_set_title</a></li>
+<li><a href="feather_labs_misc.html#console_close">console_close</a></li>
+</ul>
 <p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
 
 <h1 id="network_get_local_ipv4_addresses">network_get_local_ipv4_addresses</h1>
@@ -87,6 +103,316 @@ for (var _i = 0; _i &lt; array_length(_interfaces); ++_i)
     }
 }</code></pre>
 <p>The example prints every active non-loopback IPv4 address. VPN and virtual adapters are intentionally not filtered automatically.</p>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="network_ipv4_to_number">network_ipv4_to_number</h1>
+<p>This function converts an IPv4 address in dotted notation to the numeric host-order representation expected by <a href="dedicated_servers.html#steam_game_server_init">steam_game_server_init</a>. It does not perform DNS resolution and does not require Steam to be initialized.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">network_ipv4_to_number(ip)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>ip</code></td><td>String</td><td>IPv4 address containing four decimal octets, for example <code>"192.168.1.20"</code>.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Int64</p></blockquote>
+<p>The numeric IPv4 address in host byte order. Returns <code>-1</code> if the string is not a valid IPv4 address. Valid results range from <code>0</code> through <code>4294967295</code>.</p>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _ip = network_ipv4_to_number("192.168.1.20");
+
+if (_ip == -1)
+{
+    show_error("Invalid server IP address", true);
+}
+
+steam_game_server_init(
+    _ip,
+    27015,
+    27016,
+    steam_game_server_mode_authentication,
+    "1.0.0.0"
+);</code></pre>
+<p><code>network_ipv4_to_number("127.0.0.1")</code> returns <code>2130706433</code> (<code>0x7F000001</code>). Use <code>0</code> directly when the server should bind to all local IPv4 interfaces.</p>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="server-console">Dedicated-server console</h1>
+<p>The console functions provide interactive text input and output for a dedicated server. On Windows, <code>console_open</code> allocates a console for the current game process without launching <code>cmd.exe</code>. On Linux and macOS, the functions use the terminal or standard streams from which the server was launched.</p>
+<div class="admonition note"><p class="admonition-title">Note</p><p>Console input is non-blocking. Call <code>console_read_line</code> regularly from a Step event; it immediately returns an empty string when no complete command is waiting.</p></div>
+<div class="admonition tip"><p class="admonition-title">Tip</p><p>Use <code>console_log</code> for server messages that should be visible both in the GameMaker IDE Output window and in the server console.</p></div>
+<h2 id="console-colors">Color constants</h2>
+<p>The same constants are accepted for text and background colors on every supported desktop platform.</p>
+<table>
+<thead><tr><th>Constant</th><th>Value</th><th>Color</th></tr></thead>
+<tbody>
+<tr><td><code>console_color_black</code></td><td>0</td><td>Black</td></tr>
+<tr><td><code>console_color_red</code></td><td>1</td><td>Red</td></tr>
+<tr><td><code>console_color_green</code></td><td>2</td><td>Green</td></tr>
+<tr><td><code>console_color_yellow</code></td><td>3</td><td>Yellow</td></tr>
+<tr><td><code>console_color_blue</code></td><td>4</td><td>Blue</td></tr>
+<tr><td><code>console_color_magenta</code></td><td>5</td><td>Magenta</td></tr>
+<tr><td><code>console_color_cyan</code></td><td>6</td><td>Cyan</td></tr>
+<tr><td><code>console_color_white</code></td><td>7</td><td>White</td></tr>
+<tr><td><code>console_color_bright_black</code></td><td>8</td><td>Bright black / gray</td></tr>
+<tr><td><code>console_color_bright_red</code></td><td>9</td><td>Bright red</td></tr>
+<tr><td><code>console_color_bright_green</code></td><td>10</td><td>Bright green</td></tr>
+<tr><td><code>console_color_bright_yellow</code></td><td>11</td><td>Bright yellow</td></tr>
+<tr><td><code>console_color_bright_blue</code></td><td>12</td><td>Bright blue</td></tr>
+<tr><td><code>console_color_bright_magenta</code></td><td>13</td><td>Bright magenta</td></tr>
+<tr><td><code>console_color_bright_cyan</code></td><td>14</td><td>Bright cyan</td></tr>
+<tr><td><code>console_color_bright_white</code></td><td>15</td><td>Bright white</td></tr>
+</tbody>
+</table>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_open">console_open</h1>
+<p>Opens the interactive console used by the current game process. Calling this function when the console is already open keeps the existing console and updates its title.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_open(title)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>title</code></td><td>String</td><td>Title shown by the console window or terminal.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: <code>true</code> if console input/output is available.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">if (console_open("My Game Dedicated Server"))
+{
+    console_log("Server console ready");
+}</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_is_open">console_is_open</h1>
+<p>Returns whether the dedicated-server console is currently open and available to the extension.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_is_open()</code></pre></blockquote>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">if (!console_is_open())
+{
+    console_open("Dedicated Server");
+}</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_write_line">console_write_line</h1>
+<p>Writes one UTF-8 text line to the dedicated-server console. Unlike <code>console_log</code>, this function does not duplicate the message to GameMaker Output.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_write_line(text)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>text</code></td><td>String</td><td>Text to write. A line ending is appended automatically.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the complete line was written.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_write_line("Players: " + string(instance_number(obj_player)));</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_log">console_log</h1>
+<p>Writes one line to both the dedicated-server console and the GameMaker logging channel used by the IDE Output window. This is the recommended function for ordinary server logs.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_log(text)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>text</code></td><td>String</td><td>Text to write to both destinations.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the console received the line. The IDE log call is still made when no console is open.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_log("Listening on UDP port " + string(server_port));</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_clear">console_clear</h1>
+<p>Clears the console display and moves the cursor to the top-left corner without discarding commands already waiting for <code>console_read_line</code>. On Windows, a visible prompt and its current editable command are redrawn after the clear operation. Normally this function is called in response to a completed <code>clear</code> command, when no command is being edited.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_clear()</code></pre></blockquote>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the console display was cleared.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">if (_command == "clear")
+{
+    console_clear();
+}</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_set_prompt">console_set_prompt</h1>
+<p>Changes the immutable prefix displayed before the editable command text. The default prompt is <code>&gt; </code>. The prompt is visual only and is never included in the string returned by <code>console_read_line</code>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_set_prompt(prompt)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>prompt</code></td><td>String</td><td>Prefix such as <code>"&gt; "</code> or <code>"server&gt; "</code>. An empty string disables the visible prefix.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the prompt value was accepted.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_set_prompt("server&gt; ");</code></pre>
+<p>If the console displays <code>server&gt; status</code>, pressing Enter causes <code>console_read_line()</code> to return only <code>"status"</code>. Backspace can erase <code>status</code>, but not <code>server&gt; </code>.</p>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_set_text_color">console_set_text_color</h1>
+<p>Changes the foreground color used by subsequent calls to <code>console_write_line</code> and <code>console_log</code>. The color remains active until it is changed or reset.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_set_text_color(color)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>color</code></td><td>Real</td><td>One of the <code>console_color_*</code> constants.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the color was applied.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_set_text_color(console_color_bright_green);
+console_write_line("Server started successfully");</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_set_background_color">console_set_background_color</h1>
+<p>Changes the background color used by subsequently written console cells. The current foreground color is preserved.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_set_background_color(color)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>color</code></td><td>Real</td><td>One of the <code>console_color_*</code> constants.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the color was applied.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_set_background_color(console_color_red);
+console_set_text_color(console_color_bright_white);
+console_write_line(" FATAL ERROR ");
+console_reset_color();</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_reset_color">console_reset_color</h1>
+<p>Restores the foreground and background colors that were active when the console was opened.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_reset_color()</code></pre></blockquote>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the original colors were restored.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_set_text_color(console_color_yellow);
+console_write_line("Warning: high server frame time");
+console_reset_color();</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_write_line_colored">console_write_line_colored</h1>
+<p>Writes one line using a temporary foreground color. The previously selected foreground and background colors are restored immediately afterward.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_write_line_colored(text, color)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>text</code></td><td>String</td><td>Text to write. A line ending is appended automatically.</td></tr>
+<tr><td><code>color</code></td><td>Real</td><td>One of the <code>console_color_*</code> constants.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the color was applied, the line was written, and the previous color was restored.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_write_line_colored(
+    "Unknown command: " + _command,
+    console_color_bright_red
+);</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_read_line">console_read_line</h1>
+<p>Removes and returns the oldest complete command entered in the console. The function never waits for input, so it is safe to call every frame. While it is called regularly, the console displays the immutable prompt and the editable command text. The returned string contains only the command, without the prompt or line ending.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_read_line()</code></pre></blockquote>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>String: the command without its line ending, or <code>""</code> when no command is waiting. Empty commands are ignored.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">// Step Event
+var _command = console_read_line();
+
+while (_command != "")
+{
+    switch (string_lower(_command))
+    {
+        case "status":
+            console_log("Players online: " + string(instance_number(obj_player)));
+            break;
+
+        case "quit":
+            console_log("Shutting down");
+            game_end();
+            break;
+
+        default:
+            console_log("Unknown command: " + _command);
+            break;
+    }
+
+    _command = console_read_line();
+}</code></pre>
+<p>The loop drains every command already waiting in the console during the current step.</p>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_set_title">console_set_title</h1>
+<p>Changes the title of the open console window or attached terminal.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_set_title(title)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody><tr><td><code>title</code></td><td>String</td><td>New console title.</td></tr></tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the title was changed.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">console_set_title("My Server - " + string(instance_number(obj_player)) + " players");</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="console_close">console_close</h1>
+<p>Stops console input/output and clears queued commands. On Windows, a console allocated by <code>console_open</code> is detached and closed. An inherited terminal on Linux or macOS is not destroyed or reconfigured.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">console_close()</code></pre></blockquote>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: <code>true</code> if a console was open.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">// Clean Up Event
+console_close();</code></pre>
 <p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
       </div></div>
     </div></div>

@@ -7,6 +7,8 @@
 #include "steam_common.h"
 
 #include <cstdio>
+#include <cstring>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -15,9 +17,12 @@
 #include <iphlpapi.h>
 #else
 #include <arpa/inet.h>
+#include <cerrno>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <poll.h>
+#include <unistd.h>
 #endif
 
 // #pragma region int64 workarounds (http://bugs.yoyogames.com/view.php?id=21357)
@@ -261,4 +266,746 @@ YYEXPORT void network_get_local_ipv4_addresses(RValue& Result, CInstance*, CInst
 #endif
 
     _SW_SetArrayOfRValue(&Result, entries);
+}
+
+/// @description Converts an IPv4 address in dotted notation to its numeric host-order value.
+/// @param {String} ip IPv4 address such as "192.168.1.20".
+/// @returns {Int64} Value suitable for steam_game_server_init, or -1 if the address is invalid.
+YYEXPORT void network_ipv4_to_number(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    Result.kind = VALUE_INT64;
+    Result.v64 = -1;
+
+    if (argc < 1)
+        return;
+
+    const char* input = YYGetString(args, 0);
+    if (!input || !*input)
+        return;
+
+    uint32_t address = 0;
+    const char* cursor = input;
+
+    for (int octetIndex = 0; octetIndex < 4; ++octetIndex)
+    {
+        if (*cursor < '0' || *cursor > '9')
+            return;
+
+        uint32_t octet = 0;
+        do
+        {
+            octet = octet * 10u + static_cast<uint32_t>(*cursor - '0');
+            if (octet > 255u)
+                return;
+            ++cursor;
+        }
+        while (*cursor >= '0' && *cursor <= '9');
+
+        address = (address << 8u) | octet;
+
+        if (octetIndex < 3)
+        {
+            if (*cursor != '.')
+                return;
+            ++cursor;
+        }
+        else if (*cursor != '\0')
+        {
+            return;
+        }
+    }
+
+    Result.v64 = static_cast<int64_t>(address);
+}
+
+namespace
+{
+bool consoleActive = false;
+std::deque<std::string> consoleLines;
+int consoleTextColor = -1;
+int consoleBackgroundColor = -1;
+std::string consolePrompt = "> ";
+bool consolePromptVisible = false;
+
+#ifdef OS_Windows
+bool consoleOwned = false;
+HANDLE consoleInput = INVALID_HANDLE_VALUE;
+HANDLE consoleOutput = INVALID_HANDLE_VALUE;
+std::wstring consoleInputLine;
+DWORD originalConsoleOutputMode = 0;
+bool consoleOutputModeSaved = false;
+bool consoleVirtualTerminal = false;
+WORD defaultConsoleAttributes =
+    FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+
+std::wstring utf8_to_wide(const char* value)
+{
+    if (!value || !*value)
+        return std::wstring();
+
+    int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+        value, -1, nullptr, 0);
+    if (size <= 1)
+        return std::wstring();
+
+    std::vector<wchar_t> characters(static_cast<size_t>(size));
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+        value, -1, characters.data(), size) == 0)
+        return std::wstring();
+    return std::wstring(characters.data());
+}
+
+bool write_console_wide(const wchar_t* value, DWORD length)
+{
+    if (!consoleActive || consoleOutput == INVALID_HANDLE_VALUE)
+        return false;
+
+    DWORD written = 0;
+    return WriteConsoleW(consoleOutput, value, length, &written, nullptr) != FALSE &&
+        written == length;
+}
+
+bool show_console_prompt()
+{
+    if (consolePromptVisible)
+        return true;
+
+    const std::wstring prompt = utf8_to_wide(consolePrompt.c_str());
+    if (!consolePrompt.empty() && prompt.empty())
+        return false;
+
+    bool success = prompt.empty() ||
+        write_console_wide(prompt.c_str(), static_cast<DWORD>(prompt.size()));
+    if (success && !consoleInputLine.empty())
+        success = write_console_wide(consoleInputLine.c_str(),
+            static_cast<DWORD>(consoleInputLine.size()));
+    consolePromptVisible = success;
+    return success;
+}
+
+void clear_console_prompt_visual()
+{
+    if (!consolePromptVisible)
+        return;
+
+    const std::wstring prompt = utf8_to_wide(consolePrompt.c_str());
+    const size_t visibleLength = prompt.size() + consoleInputLine.size();
+    static const wchar_t carriageReturn = L'\r';
+    write_console_wide(&carriageReturn, 1);
+    if (visibleLength > 0)
+    {
+        const std::wstring spaces(visibleLength, L' ');
+        write_console_wide(spaces.c_str(), static_cast<DWORD>(spaces.size()));
+        write_console_wide(&carriageReturn, 1);
+    }
+    consolePromptVisible = false;
+}
+
+WORD windows_color_bits(int color, bool background)
+{
+    static const WORD foregroundColors[8] = {
+        0,
+        FOREGROUND_RED,
+        FOREGROUND_GREEN,
+        FOREGROUND_RED | FOREGROUND_GREEN,
+        FOREGROUND_BLUE,
+        FOREGROUND_RED | FOREGROUND_BLUE,
+        FOREGROUND_GREEN | FOREGROUND_BLUE,
+        FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
+    };
+
+    WORD bits = foregroundColors[color & 7];
+    if ((color & 8) != 0)
+        bits |= FOREGROUND_INTENSITY;
+    return background ? static_cast<WORD>(bits << 4) : bits;
+}
+
+bool apply_console_colors()
+{
+    if (!consoleActive || consoleOutput == INVALID_HANDLE_VALUE)
+        return false;
+
+    if (consoleVirtualTerminal)
+    {
+        const int foreground = consoleTextColor < 0 ? 39 :
+            (consoleTextColor < 8 ? 30 + consoleTextColor : 90 + consoleTextColor - 8);
+        const int background = consoleBackgroundColor < 0 ? 49 :
+            (consoleBackgroundColor < 8 ? 40 + consoleBackgroundColor : 100 + consoleBackgroundColor - 8);
+        wchar_t sequence[24]{};
+        const int length = std::swprintf(sequence,
+            sizeof(sequence) / sizeof(sequence[0]), L"\x1b[%d;%dm",
+            foreground, background);
+        return length > 0 &&
+            write_console_wide(sequence, static_cast<DWORD>(length));
+    }
+
+    const WORD foregroundMask = FOREGROUND_RED | FOREGROUND_GREEN |
+        FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    const WORD backgroundMask = BACKGROUND_RED | BACKGROUND_GREEN |
+        BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    WORD attributes = defaultConsoleAttributes;
+    if (consoleTextColor >= 0)
+        attributes = static_cast<WORD>((attributes & ~foregroundMask) |
+            windows_color_bits(consoleTextColor, false));
+    if (consoleBackgroundColor >= 0)
+        attributes = static_cast<WORD>((attributes & ~backgroundMask) |
+            windows_color_bits(consoleBackgroundColor, true));
+    return SetConsoleTextAttribute(consoleOutput, attributes) != FALSE;
+}
+
+bool write_console_line(const char* text)
+{
+    if (!consoleActive)
+        return false;
+
+    clear_console_prompt_visual();
+    const std::wstring line = utf8_to_wide(text ? text : "");
+    if (text && *text && line.empty())
+        return false;
+
+    bool success = line.empty() ||
+        write_console_wide(line.c_str(), static_cast<DWORD>(line.size()));
+    static const wchar_t newline[] = L"\r\n";
+    return write_console_wide(newline, 2) && success;
+}
+
+void poll_console_input()
+{
+    if (!consoleActive || consoleInput == INVALID_HANDLE_VALUE)
+        return;
+    if (!show_console_prompt())
+        return;
+
+    DWORD available = 0;
+    if (!GetNumberOfConsoleInputEvents(consoleInput, &available))
+        return;
+
+    while (available > 0)
+    {
+        INPUT_RECORD records[64]{};
+        DWORD read = 0;
+        const DWORD requested = available < 64 ? available : 64;
+        if (!ReadConsoleInputW(consoleInput, records, requested, &read))
+            return;
+
+        for (DWORD recordIndex = 0; recordIndex < read; ++recordIndex)
+        {
+            const INPUT_RECORD& record = records[recordIndex];
+            if (record.EventType != KEY_EVENT || !record.Event.KeyEvent.bKeyDown)
+                continue;
+
+            const KEY_EVENT_RECORD& key = record.Event.KeyEvent;
+            const wchar_t character = key.uChar.UnicodeChar;
+            const WORD repeats = key.wRepeatCount > 0 ? key.wRepeatCount : 1;
+
+            for (WORD repeat = 0; repeat < repeats; ++repeat)
+            {
+                if (character == L'\r' || character == L'\n')
+                {
+                    static const wchar_t newline[] = L"\r\n";
+                    write_console_wide(newline, 2);
+                    consolePromptVisible = false;
+                    if (!consoleInputLine.empty())
+                    {
+                        consoleLines.push_back(wide_to_utf8(consoleInputLine.c_str()));
+                        consoleInputLine.clear();
+                    }
+                }
+                else if (character == L'\b')
+                {
+                    if (!consoleInputLine.empty())
+                    {
+                        consoleInputLine.pop_back();
+                        if (!consoleInputLine.empty() &&
+                            consoleInputLine.back() >= 0xD800 &&
+                            consoleInputLine.back() <= 0xDBFF)
+                            consoleInputLine.pop_back();
+                        static const wchar_t erase[] = L"\b \b";
+                        write_console_wide(erase, 3);
+                    }
+                }
+                else if (character >= L' ')
+                {
+                    consoleInputLine.push_back(character);
+                    write_console_wide(&character, 1);
+                }
+            }
+        }
+
+        if (!GetNumberOfConsoleInputEvents(consoleInput, &available))
+            return;
+    }
+}
+#else
+std::string consoleInputBytes;
+
+bool show_console_prompt()
+{
+    if (consolePromptVisible)
+        return true;
+    const bool success =
+        std::fwrite(consolePrompt.data(), 1, consolePrompt.size(), stdout) ==
+        consolePrompt.size();
+    std::fflush(stdout);
+    consolePromptVisible = success;
+    return success;
+}
+
+bool apply_console_colors()
+{
+    if (!consoleActive)
+        return false;
+
+    const int foreground = consoleTextColor < 0 ? 39 :
+        (consoleTextColor < 8 ? 30 + consoleTextColor : 90 + consoleTextColor - 8);
+    const int background = consoleBackgroundColor < 0 ? 49 :
+        (consoleBackgroundColor < 8 ? 40 + consoleBackgroundColor : 100 + consoleBackgroundColor - 8);
+    const bool success = std::fprintf(stdout, "\033[%d;%dm",
+        foreground, background) >= 0;
+    std::fflush(stdout);
+    return success;
+}
+
+bool write_console_line(const char* text)
+{
+    if (!consoleActive)
+        return false;
+
+    if (consolePromptVisible)
+    {
+        std::fwrite("\n", 1, 1, stdout);
+        consolePromptVisible = false;
+    }
+    const char* line = text ? text : "";
+    const size_t length = std::strlen(line);
+    const bool success = std::fwrite(line, 1, length, stdout) == length &&
+        std::fwrite("\n", 1, 1, stdout) == 1;
+    std::fflush(stdout);
+    return success;
+}
+
+void poll_console_input()
+{
+    if (!consoleActive)
+        return;
+    if (!show_console_prompt())
+        return;
+
+    char buffer[512];
+    for (;;)
+    {
+        pollfd inputStatus{};
+        inputStatus.fd = STDIN_FILENO;
+        inputStatus.events = POLLIN;
+        if (poll(&inputStatus, 1, 0) <= 0 || (inputStatus.revents & POLLIN) == 0)
+            break;
+
+        const ssize_t count = read(STDIN_FILENO, buffer, sizeof(buffer));
+        if (count > 0)
+        {
+            consoleInputBytes.append(buffer, static_cast<size_t>(count));
+            continue;
+        }
+        if (count < 0 && errno == EINTR)
+            continue;
+        break;
+    }
+
+    size_t newline = 0;
+    while ((newline = consoleInputBytes.find('\n')) != std::string::npos)
+    {
+        std::string line = consoleInputBytes.substr(0, newline);
+        consoleInputBytes.erase(0, newline + 1);
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (!line.empty())
+            consoleLines.push_back(line);
+        consolePromptVisible = false;
+    }
+}
+#endif
+
+bool set_console_text_color_impl(int color)
+{
+    if (!consoleActive || color < 0 || color > 15)
+        return false;
+    const int previous = consoleTextColor;
+    consoleTextColor = color;
+    if (apply_console_colors())
+        return true;
+    consoleTextColor = previous;
+    return false;
+}
+
+bool set_console_background_color_impl(int color)
+{
+    if (!consoleActive || color < 0 || color > 15)
+        return false;
+    const int previous = consoleBackgroundColor;
+    consoleBackgroundColor = color;
+    if (apply_console_colors())
+        return true;
+    consoleBackgroundColor = previous;
+    return false;
+}
+
+void set_console_bool(RValue& result, bool value)
+{
+    result.kind = VALUE_BOOL;
+    result.val = value;
+}
+}
+
+/// @description Opens an interactive console for a dedicated server.
+/// @param {String} title Console window title.
+/// @returns {Bool} Whether the console is available.
+YYEXPORT void console_open(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    const char* title = argc > 0 ? YYGetString(args, 0) : "";
+
+    if (consoleActive)
+    {
+#ifdef OS_Windows
+        const std::wstring wideTitle = utf8_to_wide(title);
+        if (!wideTitle.empty())
+            SetConsoleTitleW(wideTitle.c_str());
+#else
+        if (title && *title && isatty(STDOUT_FILENO))
+        {
+            std::fprintf(stdout, "\033]0;%s\007", title);
+            std::fflush(stdout);
+        }
+#endif
+        set_console_bool(Result, true);
+        return;
+    }
+
+#ifdef OS_Windows
+    consoleOwned = GetConsoleCP() == 0;
+    if (consoleOwned && !AllocConsole())
+    {
+        consoleOwned = false;
+        set_console_bool(Result, false);
+        return;
+    }
+
+    consoleInput = CreateFileW(L"CONIN$", GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+    consoleOutput = CreateFileW(L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+
+    if (consoleInput == INVALID_HANDLE_VALUE || consoleOutput == INVALID_HANDLE_VALUE)
+    {
+        if (consoleInput != INVALID_HANDLE_VALUE)
+            CloseHandle(consoleInput);
+        if (consoleOutput != INVALID_HANDLE_VALUE)
+            CloseHandle(consoleOutput);
+        consoleInput = INVALID_HANDLE_VALUE;
+        consoleOutput = INVALID_HANDLE_VALUE;
+        if (consoleOwned)
+            FreeConsole();
+        consoleOwned = false;
+        set_console_bool(Result, false);
+        return;
+    }
+
+    consoleActive = true;
+    consoleTextColor = -1;
+    consoleBackgroundColor = -1;
+    consolePromptVisible = false;
+
+    CONSOLE_SCREEN_BUFFER_INFO bufferInfo{};
+    if (GetConsoleScreenBufferInfo(consoleOutput, &bufferInfo))
+        defaultConsoleAttributes = bufferInfo.wAttributes;
+    consoleOutputModeSaved =
+        GetConsoleMode(consoleOutput, &originalConsoleOutputMode) != FALSE;
+    if (consoleOutputModeSaved)
+    {
+        const DWORD virtualTerminalMode = originalConsoleOutputMode |
+            ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        consoleVirtualTerminal =
+            SetConsoleMode(consoleOutput, virtualTerminalMode) != FALSE;
+    }
+
+    const std::wstring wideTitle = utf8_to_wide(title);
+    if (!wideTitle.empty())
+        SetConsoleTitleW(wideTitle.c_str());
+#else
+    consoleActive = stdout != nullptr;
+    consoleTextColor = -1;
+    consoleBackgroundColor = -1;
+    consolePromptVisible = false;
+
+    if (consoleActive && title && *title && isatty(STDOUT_FILENO))
+    {
+        std::fprintf(stdout, "\033]0;%s\007", title);
+        std::fflush(stdout);
+    }
+#endif
+
+    set_console_bool(Result, consoleActive);
+}
+
+/// @description Returns whether the dedicated-server console is open.
+/// @returns {Bool}
+YYEXPORT void console_is_open(RValue& Result, CInstance*, CInstance*, int, RValue*)
+{
+    set_console_bool(Result, consoleActive);
+}
+
+/// @description Writes one line to the dedicated-server console.
+/// @param {String} text Text to write.
+/// @returns {Bool} Whether the line was written.
+YYEXPORT void console_write_line(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    set_console_bool(Result,
+        argc > 0 && write_console_line(YYGetString(args, 0)));
+}
+
+/// @description Writes one line to both GameMaker Output and the dedicated-server console.
+/// @param {String} text Text to write.
+/// @returns {Bool} Whether the line was written to the console.
+YYEXPORT void console_log(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    if (argc < 1)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const char* text = YYGetString(args, 0);
+    DebugConsoleOutput("%s\n", text ? text : "");
+    set_console_bool(Result, write_console_line(text));
+}
+
+/// @description Clears the console display without discarding input or queued commands.
+/// @returns {Bool}
+YYEXPORT void console_clear(RValue& Result, CInstance*, CInstance*, int, RValue*)
+{
+    if (!consoleActive)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const bool redrawPrompt = consolePromptVisible;
+    consolePromptVisible = false;
+    bool success = false;
+
+#ifdef OS_Windows
+    CONSOLE_SCREEN_BUFFER_INFO bufferInfo{};
+    if (consoleOutput != INVALID_HANDLE_VALUE &&
+        GetConsoleScreenBufferInfo(consoleOutput, &bufferInfo))
+    {
+        const COORD origin{ 0, 0 };
+        const DWORD cellCount =
+            static_cast<DWORD>(bufferInfo.dwSize.X) *
+            static_cast<DWORD>(bufferInfo.dwSize.Y);
+        DWORD charactersWritten = 0;
+        DWORD attributesWritten = 0;
+        success =
+            FillConsoleOutputCharacterW(consoleOutput, L' ', cellCount,
+                origin, &charactersWritten) != FALSE &&
+            FillConsoleOutputAttribute(consoleOutput, bufferInfo.wAttributes,
+                cellCount, origin, &attributesWritten) != FALSE &&
+            SetConsoleCursorPosition(consoleOutput, origin) != FALSE;
+    }
+#else
+    success = std::fwrite("\033[2J\033[3J\033[H", 1, 11, stdout) == 11;
+    std::fflush(stdout);
+#endif
+
+    if (success && redrawPrompt)
+        success = show_console_prompt();
+    else if (!success)
+        consolePromptVisible = redrawPrompt;
+    set_console_bool(Result, success);
+}
+
+/// @description Changes the immutable prefix shown before console input.
+/// @param {String} prompt Prompt text, such as "> " or "server> ".
+/// @returns {Bool}
+YYEXPORT void console_set_prompt(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    if (argc < 1)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+#ifdef OS_Windows
+    clear_console_prompt_visual();
+#else
+    if (consoleActive && consolePromptVisible)
+    {
+        std::fwrite("\n", 1, 1, stdout);
+        std::fflush(stdout);
+        consolePromptVisible = false;
+    }
+#endif
+    const char* prompt = YYGetString(args, 0);
+    consolePrompt = prompt ? prompt : "";
+    set_console_bool(Result, true);
+}
+
+/// @description Changes the color used by subsequent console text.
+/// @param {Real} color A console_color_* constant.
+/// @returns {Bool}
+YYEXPORT void console_set_text_color(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    set_console_bool(Result,
+        argc > 0 && set_console_text_color_impl(YYGetInt32(args, 0)));
+}
+
+/// @description Changes the background color used by subsequent console text.
+/// @param {Real} color A console_color_* constant.
+/// @returns {Bool}
+YYEXPORT void console_set_background_color(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    set_console_bool(Result,
+        argc > 0 && set_console_background_color_impl(YYGetInt32(args, 0)));
+}
+
+/// @description Restores the console's original text and background colors.
+/// @returns {Bool}
+YYEXPORT void console_reset_color(RValue& Result, CInstance*, CInstance*, int, RValue*)
+{
+    if (!consoleActive)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const int previousText = consoleTextColor;
+    const int previousBackground = consoleBackgroundColor;
+    consoleTextColor = -1;
+    consoleBackgroundColor = -1;
+    if (!apply_console_colors())
+    {
+        consoleTextColor = previousText;
+        consoleBackgroundColor = previousBackground;
+        set_console_bool(Result, false);
+        return;
+    }
+    set_console_bool(Result, true);
+}
+
+/// @description Writes one line in a temporary text color.
+/// @param {String} text Text to write.
+/// @param {Real} color A console_color_* constant.
+/// @returns {Bool}
+YYEXPORT void console_write_line_colored(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    if (argc < 2 || !consoleActive)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const int color = YYGetInt32(args, 1);
+    if (color < 0 || color > 15)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const int previousText = consoleTextColor;
+    const bool colorChanged = set_console_text_color_impl(color);
+    const bool lineWritten = colorChanged &&
+        write_console_line(YYGetString(args, 0));
+    consoleTextColor = previousText;
+    const bool colorRestored = apply_console_colors();
+    set_console_bool(Result,
+        colorChanged && lineWritten && colorRestored);
+}
+
+/// @description Gets the next complete command without blocking the game loop.
+/// @returns {String} Command text, or an empty string when none is available.
+YYEXPORT void console_read_line(RValue& Result, CInstance*, CInstance*, int, RValue*)
+{
+    poll_console_input();
+    if (consoleLines.empty())
+    {
+        YYCreateString(&Result, "");
+        return;
+    }
+
+    const std::string line = consoleLines.front();
+    consoleLines.pop_front();
+    YYCreateString(&Result, line.c_str());
+}
+
+/// @description Changes the dedicated-server console title.
+/// @param {String} title New title.
+/// @returns {Bool} Whether the title was changed.
+YYEXPORT void console_set_title(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    if (!consoleActive || argc < 1)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const char* title = YYGetString(args, 0);
+#ifdef OS_Windows
+    const std::wstring wideTitle = utf8_to_wide(title);
+    set_console_bool(Result,
+        (!title || !*title) ? SetConsoleTitleW(L"") != FALSE :
+        !wideTitle.empty() && SetConsoleTitleW(wideTitle.c_str()) != FALSE);
+#else
+    if (!isatty(STDOUT_FILENO))
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+    std::fprintf(stdout, "\033]0;%s\007", title ? title : "");
+    std::fflush(stdout);
+    set_console_bool(Result, true);
+#endif
+}
+
+/// @description Closes a console created by console_open.
+/// @returns {Bool} Whether a console was open.
+YYEXPORT void console_close(RValue& Result, CInstance*, CInstance*, int, RValue*)
+{
+    const bool wasActive = consoleActive;
+    if (!consoleActive)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+#ifdef OS_Windows
+    clear_console_prompt_visual();
+    consoleTextColor = -1;
+    consoleBackgroundColor = -1;
+    apply_console_colors();
+    if (consoleOutputModeSaved && consoleOutput != INVALID_HANDLE_VALUE)
+        SetConsoleMode(consoleOutput, originalConsoleOutputMode);
+    if (consoleInput != INVALID_HANDLE_VALUE)
+        CloseHandle(consoleInput);
+    if (consoleOutput != INVALID_HANDLE_VALUE)
+        CloseHandle(consoleOutput);
+    consoleInput = INVALID_HANDLE_VALUE;
+    consoleOutput = INVALID_HANDLE_VALUE;
+    consoleInputLine.clear();
+    consoleOutputModeSaved = false;
+    consoleVirtualTerminal = false;
+    if (consoleOwned)
+        FreeConsole();
+    consoleOwned = false;
+#else
+    if (consolePromptVisible)
+        std::fwrite("\n", 1, 1, stdout);
+    consolePromptVisible = false;
+    consoleTextColor = -1;
+    consoleBackgroundColor = -1;
+    apply_console_colors();
+    consoleInputBytes.clear();
+#endif
+
+    consoleActive = false;
+    consolePromptVisible = false;
+    consoleLines.clear();
+    set_console_bool(Result, wasActive);
 }
