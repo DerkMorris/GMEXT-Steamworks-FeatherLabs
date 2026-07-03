@@ -29,6 +29,25 @@ void set_real(RValue& result, double value)
     result.val = value;
 }
 
+bool is_numeric_rvalue(const RValue* value)
+{
+    if (!value)
+        return false;
+    const int kind = KIND_RValue(value);
+    return kind == VALUE_REAL || kind == VALUE_INT32 ||
+        kind == VALUE_INT64 || kind == VALUE_BOOL;
+}
+
+RValue* game_server_config_member(RValue* config, const char* name,
+    bool required = true)
+{
+    RValue* member = YYStructGetMember(config, name);
+    if (!member && required)
+        DebugConsoleOutput(
+            "steam_game_server_init: missing config.%s\n", name);
+    return member;
+}
+
 void dispatch(const char* type)
 {
     int map = CreateDsMap(0, 0);
@@ -191,22 +210,59 @@ YYEXPORT void steam_game_server_init(RValue& Result, CInstance*, CInstance*, int
         set_bool(Result, true);
         return;
     }
-    if (argc < 5) {
+    if (argc < 1 || KIND_RValue(args) != VALUE_OBJECT) {
+        DebugConsoleOutput(
+            "steam_game_server_init: expected one config struct\n");
         set_bool(Result, false);
         return;
     }
 
-    const uint32 ip = static_cast<uint32>(YYGetInt64(args, 0));
-    const int gamePort = YYGetInt32(args, 1);
-    const int queryPort = YYGetInt32(args, 2);
-    const int mode = YYGetInt32(args, 3);
-    const char* version = YYGetString(args, 4);
-    if (gamePort < 0 || gamePort > 65535 || queryPort < 0 || queryPort > 65535 ||
-        mode < eServerModeNoAuthentication || mode > eServerModeAuthenticationAndSecure) {
+    RValue* config = YYGetStruct(args, 0);
+    if (!config) {
+        DebugConsoleOutput(
+            "steam_game_server_init: config is not a struct\n");
         set_bool(Result, false);
         return;
     }
 
+    RValue* ipValue = game_server_config_member(config, "ip", false);
+    RValue* gamePortValue = game_server_config_member(config, "game_port");
+    RValue* queryPortValue = game_server_config_member(config, "query_port");
+    RValue* modeValue = game_server_config_member(config, "server_mode");
+    RValue* versionValue = game_server_config_member(config, "version");
+    if (!gamePortValue || !queryPortValue || !modeValue || !versionValue) {
+        set_bool(Result, false);
+        return;
+    }
+    if ((ipValue && !is_numeric_rvalue(ipValue)) ||
+        !is_numeric_rvalue(gamePortValue) ||
+        !is_numeric_rvalue(queryPortValue) ||
+        !is_numeric_rvalue(modeValue) ||
+        KIND_RValue(versionValue) != VALUE_STRING) {
+        DebugConsoleOutput(
+            "steam_game_server_init: invalid config member type\n");
+        set_bool(Result, false);
+        return;
+    }
+
+    const int64 ipNumber = ipValue ? YYGetInt64(ipValue, 0) : 0;
+    const int gamePort = YYGetInt32(gamePortValue, 0);
+    const int queryPort = YYGetInt32(queryPortValue, 0);
+    const int mode = YYGetInt32(modeValue, 0);
+    const char* version = versionValue->GetString();
+    if (ipNumber < 0 || ipNumber > 0xFFFFFFFFLL ||
+        gamePort < 0 || gamePort > 65535 ||
+        queryPort < 0 || queryPort > 65535 ||
+        mode < eServerModeNoAuthentication ||
+        mode > eServerModeAuthenticationAndSecure ||
+        !version || !*version) {
+        DebugConsoleOutput(
+            "steam_game_server_init: invalid config member value\n");
+        set_bool(Result, false);
+        return;
+    }
+
+    const uint32 ip = static_cast<uint32>(ipNumber);
     SteamErrMsg error{};
     ESteamAPIInitResult initResult = SteamGameServer_InitEx(
         ip, static_cast<uint16>(gamePort), static_cast<uint16>(queryPort),

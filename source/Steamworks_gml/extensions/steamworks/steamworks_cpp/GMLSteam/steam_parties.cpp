@@ -233,16 +233,69 @@ void steam_net_callbacks_t::parties_create_beacon(CreateBeaconCallback_t* e, boo
 /// [async] Creates a party beacon at the given location.
 /// Triggers a "steam_parties_create_beacon" async Social event on completion with: success, result, beacon_id.
 /// Returns false immediately if the call could not be dispatched.
-YYEXPORT void /*bool*/ steam_parties_create_beacon(RValue& Result, CInstance* selfinst, CInstance* otherinst, int argc, RValue* arg)//(double open_slots, double location_type, int64 location_id, string connect_string, string metadata)
+YYEXPORT void /*bool*/ steam_parties_create_beacon(RValue& Result, CInstance* selfinst, CInstance* otherinst, int argc, RValue* arg)//(struct config)
 {
-	uint32 open_slots     = (uint32)YYGetReal(arg, 0);
-	int32  loc_type       = YYGetInt32(arg, 1);
-	uint64 loc_id         = (uint64)YYGetInt64(arg, 2);
-	char*  connect_string = (char*)YYGetString(arg, 3);
-	char*  metadata       = (char*)YYGetString(arg, 4);
-
 	Result.kind = VALUE_BOOL;
 	if (!steam_is_initialised || !SteamParties()) { Result.val = false; return; }
+	if (argc < 1 || KIND_RValue(arg) != VALUE_OBJECT)
+	{
+		DebugConsoleOutput("steam_parties_create_beacon: expected one config struct\n");
+		Result.val = false;
+		return;
+	}
+
+	RValue* config = YYGetStruct(arg, 0);
+	if (!config)
+	{
+		DebugConsoleOutput("steam_parties_create_beacon: config is not a struct\n");
+		Result.val = false;
+		return;
+	}
+
+	RValue* openSlotsValue = YYStructGetMember(config, "open_slots");
+	RValue* locationTypeValue = YYStructGetMember(config, "location_type");
+	RValue* locationIdValue = YYStructGetMember(config, "location_id");
+	RValue* connectStringValue = YYStructGetMember(config, "connect_string");
+	RValue* metadataValue = YYStructGetMember(config, "metadata");
+	if (!openSlotsValue || !locationTypeValue || !locationIdValue ||
+		!connectStringValue || !metadataValue)
+	{
+		DebugConsoleOutput("steam_parties_create_beacon: config is missing a required member\n");
+		Result.val = false;
+		return;
+	}
+
+	const int openSlotsKind = KIND_RValue(openSlotsValue);
+	const int locationTypeKind = KIND_RValue(locationTypeValue);
+	const int locationIdKind = KIND_RValue(locationIdValue);
+	const bool openSlotsNumeric = openSlotsKind == VALUE_REAL ||
+		openSlotsKind == VALUE_INT32 || openSlotsKind == VALUE_INT64;
+	const bool locationTypeNumeric = locationTypeKind == VALUE_REAL ||
+		locationTypeKind == VALUE_INT32 || locationTypeKind == VALUE_INT64;
+	const bool locationIdNumeric = locationIdKind == VALUE_REAL ||
+		locationIdKind == VALUE_INT32 || locationIdKind == VALUE_INT64;
+	if (!openSlotsNumeric || !locationTypeNumeric || !locationIdNumeric ||
+		KIND_RValue(connectStringValue) != VALUE_STRING ||
+		KIND_RValue(metadataValue) != VALUE_STRING)
+	{
+		DebugConsoleOutput("steam_parties_create_beacon: invalid config member type\n");
+		Result.val = false;
+		return;
+	}
+
+	const int64 openSlotsNumber = YYGetInt64(openSlotsValue, 0);
+	if (openSlotsNumber < 0 || openSlotsNumber > 0xFFFFFFFFLL)
+	{
+		DebugConsoleOutput("steam_parties_create_beacon: config.open_slots is out of range\n");
+		Result.val = false;
+		return;
+	}
+
+	uint32 open_slots = static_cast<uint32>(openSlotsNumber);
+	int32 loc_type = YYGetInt32(locationTypeValue, 0);
+	uint64 loc_id = static_cast<uint64>(YYGetInt64(locationIdValue, 0));
+	const char* connect_string = connectStringValue->GetString();
+	const char* metadata = metadataValue->GetString();
 
 	SteamPartyBeaconLocation_t loc {};
 	loc.m_eType        = (ESteamPartyBeaconLocationType)loc_type;

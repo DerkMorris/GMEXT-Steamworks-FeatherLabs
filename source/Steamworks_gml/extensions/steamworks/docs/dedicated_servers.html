@@ -69,10 +69,13 @@
 
 <h2>Minimal public server</h2>
 <pre class="highlight"><code class="language-gml">// Create event
-if (!steam_game_server_init(
-    0, 27015, 27016,
-    steam_game_server_mode_authentication_and_secure,
-    "1.0.0.0"))
+if (!steam_game_server_init({
+    ip: 0,
+    game_port: 27015,
+    query_port: 27016,
+    server_mode: steam_game_server_mode_authentication_and_secure,
+    version: "1.0.0.0"
+}))
 {
     show_error("Steam game-server initialization failed", true);
 }
@@ -236,7 +239,7 @@ steam_game_server_shutdown();</code></pre>
 <p align="right"><a href="#top">Back To Top</a></p>
 
 <h1 id="steam_game_server_init">steam_game_server_init</h1>
-<p>Initializes the independent Steam game-server API. <code>ip</code> is an IPv4
+<p>Initializes the independent Steam game-server API from a configuration struct. <code>ip</code> is an IPv4
   address in host byte order; use <code>0</code> to bind automatically.
   <code>game_port</code> is the UDP gameplay port. <code>query_port</code> is
   the Steam server-browser port, or
@@ -249,35 +252,52 @@ steam_game_server_shutdown();</code></pre>
 <p><br></p>
 <p><strong>Syntax:</strong></p>
 <blockquote>
-<pre class="highlight"><code class="language-gml">steam_game_server_init(ip, game_port, query_port, server_mode, version)</code></pre>
+<pre class="highlight"><code class="language-gml">steam_game_server_init(config)</code></pre>
 </blockquote>
 
 <table>
 <thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
 <tbody>
 <tr>
+<td>config</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Structs.htm">Struct</a></td>
+<td>Game-server initialization settings.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Configuration members:</strong></p>
+<table>
+<thead><tr><th>Member</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+<tbody>
+<tr>
 <td>ip</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
-<td>IPv4 in host byte order, normally 0.</td>
+<td>No</td>
+<td>IPv4 in host byte order. Defaults to 0, which binds automatically.</td>
 </tr>
 <tr>
 <td>game_port</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Yes</td>
 <td>gameplay UDP port, 0–65535.</td>
 </tr>
 <tr>
 <td>query_port</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Yes</td>
 <td>query UDP port, 0–65535, or <code>steam_game_server_query_port_shared</code>.</td>
 </tr>
 <tr>
 <td>server_mode</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
+<td>Yes</td>
 <td>a <a href="dedicated_servers.html#steamgameservermode">SteamGameServerMode</a> constant.</td>
 </tr>
 <tr>
 <td>version</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">String</a></td>
+<td>Yes</td>
 <td>server version in <code>x.x.x.x</code> form.</td>
 </tr>
 </tbody>
@@ -288,7 +308,12 @@ steam_game_server_shutdown();</code></pre>
 <p><br></p>
 
 <p><strong>Example:</strong></p>
-<pre class="highlight"><code class="language-gml">var _result = steam_game_server_init(0, 27015, 27016, steam_game_server_mode_authentication_and_secure, "1.0.0.0");</code></pre>
+<pre class="highlight"><code class="language-gml">var _result = steam_game_server_init({
+    game_port: 27015,
+    query_port: 27016,
+    server_mode: steam_game_server_mode_authentication_and_secure,
+    version: "1.0.0.0"
+});</code></pre>
 <p><br></p>
 <hr />
 <p align="right"><a href="#top">Back To Top</a></p>
@@ -2295,13 +2320,13 @@ the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Pro
 </table>
 <p><br></p>
 <p><strong>Example:</strong></p>
-<pre class="highlight"><code class="language-gml">var _ok = steam_game_server_init(
-    0,
-    27015,
-    27016,
-    steam_game_server_mode_authentication_and_secure,
-    "1.0.0.0"
-);</code></pre>
+<pre class="highlight"><code class="language-gml">var _ok = steam_game_server_init({
+    ip: 0,
+    game_port: 27015,
+    query_port: 27016,
+    server_mode: steam_game_server_mode_authentication_and_secure,
+    version: "1.0.0.0"
+});</code></pre>
 <p>The example initializes a public Steam-authenticated dedicated server that requests VAC protection.</p>
 <p><br></p>
 <hr />

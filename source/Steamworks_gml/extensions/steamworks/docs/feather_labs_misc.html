@@ -129,13 +129,13 @@ if (_ip == -1)
     show_error("Invalid server IP address", true);
 }
 
-steam_game_server_init(
-    _ip,
-    27015,
-    27016,
-    steam_game_server_mode_authentication,
-    "1.0.0.0"
-);</code></pre>
+steam_game_server_init({
+    ip: _ip,
+    game_port: 27015,
+    query_port: 27016,
+    server_mode: steam_game_server_mode_authentication,
+    version: "1.0.0.0"
+});</code></pre>
 <p><code>network_ipv4_to_number("127.0.0.1")</code> returns <code>2130706433</code> (<code>0x7F000001</code>). Use <code>0</code> directly when the server should bind to all local IPv4 interfaces.</p>
 <p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
 

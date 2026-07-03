@@ -89,6 +89,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#user-friends">User &amp; Friends</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#parties">Parties</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#structs">Structs</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#constants">Constants</a>
@@ -176,6 +178,11 @@
 <li><a href="social.html#steam_image_get_rgba">steam_image_get_rgba</a></li>
 <li><a href="social.html#steam_image_get_bgra">steam_image_get_bgra</a></li>
 </ul>
+<h2 id="parties">Parties</h2>
+<p>The following function creates a Steam Party beacon:</p>
+<ul>
+<li><a href="social.html#steam_parties_create_beacon">steam_parties_create_beacon</a></li>
+</ul>
 <h2 id="structs">Structs</h2>
 <p>This module offers a collection of structs, which serve as custom data models for organizing and structuring data. Explore the provided structs to better understand the relationships between data elements and simplify your data manipulation tasks.</p>
 <ul>
@@ -189,6 +196,47 @@
 <li><a href="social.html#steam_friends_flags">steam_friends_flags</a></li>
 <li><a href="social.html#steam_persona_state">steam_persona_state</a></li>
 </ul>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="steam_parties_create_beacon">steam_parties_create_beacon</h1>
+<p>Asynchronously creates a Steam Party beacon using a configuration struct. Completion triggers a Social Async event with <code>event_type</code> set to <code>"steam_parties_create_beacon"</code> and the keys <code>success</code>, <code>result</code>, and <code>beacon_id</code>.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote>
+<pre class="highlight"><code class="language-gml">steam_parties_create_beacon(config)</code></pre>
+</blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td>config</td><td>Struct</td><td>Party-beacon settings described below.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Configuration members:</strong></p>
+<table>
+<thead><tr><th>Member</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>open_slots</code></td><td>Real</td><td>Number of open reservation slots.</td></tr>
+<tr><td><code>location_type</code></td><td>Real</td><td>Steam beacon location type.</td></tr>
+<tr><td><code>location_id</code></td><td>Int64</td><td>Steam beacon location ID.</td></tr>
+<tr><td><code>connect_string</code></td><td>String</td><td>Connection data returned to users who join.</td></tr>
+<tr><td><code>metadata</code></td><td>String</td><td>Metadata visible to users browsing beacons.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the asynchronous request was dispatched.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _sent = steam_parties_create_beacon({
+    open_slots: 4,
+    location_type: _location_type,
+    location_id: _location_id,
+    connect_string: "127.0.0.1:27015",
+    metadata: "mode=coop"
+});</code></pre>
 <p><br></p>
 <hr />
 <p align="right"><a href="#top">Back To Top</a></p>
