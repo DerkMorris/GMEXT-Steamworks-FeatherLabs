@@ -15,6 +15,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    var miscMenu = document.querySelector('.wy-menu.wy-menu-vertical');
+    if (miscMenu && !miscMenu.querySelector('a[href="feather_labs_misc.html"]')) {
+        var utilitiesLink = miscMenu.querySelector('a[href="utilities.html"]');
+        var miscList = document.createElement('ul');
+        miscList.innerHTML = '<li class="toctree-l1"><a class="reference internal" href="feather_labs_misc.html">Feather Labs Misc</a></li>';
+        if (utilitiesLink && utilitiesLink.closest('ul')) {
+            utilitiesLink.closest('ul').insertAdjacentElement('afterend', miscList);
+        } else {
+            miscMenu.appendChild(miscList);
+        }
+    }
+
     // Top left link should point ot the github page
     var link = document.querySelector('a.icon.icon-home');
     var githublink = document.querySelector('a.fa.fa-github')

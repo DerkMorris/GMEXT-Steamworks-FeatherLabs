@@ -226,6 +226,11 @@ steam_game_server_shutdown();</code></pre>
 <li><a href="dedicated_servers.html#steam_game_server_stats_clear_user_achievement">steam_game_server_stats_clear_user_achievement</a></li>
 <li><a href="dedicated_servers.html#steam_game_server_stats_store_user_stats">steam_game_server_stats_store_user_stats</a></li>
 </ul>
+<h2 id="constants">Constants</h2>
+<p>The following constants select the authentication, server-browser listing, and VAC policy used when initializing a Steam game server.</p>
+<ul>
+<li><a href="dedicated_servers.html#steamgameservermode">SteamGameServerMode</a></li>
+</ul>
 <p><br></p>
 <hr />
 <p align="right"><a href="#top">Back To Top</a></p>
@@ -268,7 +273,7 @@ steam_game_server_shutdown();</code></pre>
 <tr>
 <td>server_mode</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
-<td>a <code>steam_game_server_mode_*</code> constant.</td>
+<td>a <a href="dedicated_servers.html#steamgameservermode">SteamGameServerMode</a> constant.</td>
 </tr>
 <tr>
 <td>version</td>
@@ -2253,6 +2258,54 @@ the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Pro
 <hr />
 <p align="right"><a href="#top">Back To Top</a></p>
 
+
+
+<h1 id="steamgameservermode">SteamGameServerMode</h1>
+<p>These constants select the Steam backend policy passed as the <code>server_mode</code> argument to <a href="dedicated_servers.html#steam_game_server_init">steam_game_server_init</a>. The mode must be chosen during initialization and cannot be changed without shutting down and initializing the game-server API again.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This setting controls Steam authentication, master-server eligibility, and VAC policy. It does not create the gameplay transport: GameMaker sockets or SteamNetworkingSockets must still be initialized separately.</p>
+</div>
+<p>These constants are referenced by the following function:</p>
+<ul>
+<li><a href="dedicated_servers.html#steam_game_server_init">steam_game_server_init</a></li>
+</ul>
+<p><br></p>
+<table>
+<thead>
+<tr><th>Member</th><th>Value</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr>
+<td id="steam_game_server_mode_no_authentication"><code>steam_game_server_mode_no_authentication</code></td>
+<td><code>1</code></td>
+<td>Disables Steam user authentication. The server is not VAC-secured and is not listed on the Steam master server. Use this for LAN, private testing, or discovery handled entirely by your own backend.</td>
+</tr>
+<tr>
+<td id="steam_game_server_mode_authentication"><code>steam_game_server_mode_authentication</code></td>
+<td><code>2</code></td>
+<td>Enables Steam user authentication and master-server listing, but does not request VAC protection. Player tickets can be validated with <a href="dedicated_servers.html#steam_game_server_begin_auth_session">steam_game_server_begin_auth_session</a>.</td>
+</tr>
+<tr>
+<td id="steam_game_server_mode_authentication_and_secure"><code>steam_game_server_mode_authentication_and_secure</code></td>
+<td><code>3</code></td>
+<td>Enables Steam user authentication, master-server listing, and VAC protection. Check the <code>steam_game_server_policy_response</code> event or <a href="dedicated_servers.html#steam_game_server_secure">steam_game_server_secure</a> before presenting the server as secure.</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _ok = steam_game_server_init(
+    0,
+    27015,
+    27016,
+    steam_game_server_mode_authentication_and_secure,
+    "1.0.0.0"
+);</code></pre>
+<p>The example initializes a public Steam-authenticated dedicated server that requests VAC protection.</p>
+<p><br></p>
+<hr />
+<p align="right"><a href="#top">Back To Top</a></p>
 
           </div>
         </div>

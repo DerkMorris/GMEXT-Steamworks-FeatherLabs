@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="shortcut icon" href="img/favicon.ico" />
+  <title>Feather Labs Misc - Steamworks</title>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/theme_extra.css" />
+  <link href="assets/css/gmext_style.css" rel="stylesheet" />
+</head>
+<body class="wy-body-for-nav" role="document">
+<div class="wy-grid-for-nav">
+  <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search"><a href="." class="icon icon-home"> GMEXT-Steamworks</a></div>
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+        <ul><li class="toctree-l1"><a class="reference internal" href="home.html">Steamworks Extension</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="guides.html">Setup Guide (IDE/Runtime 2022.6+)</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="management.html">Management</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="general.html">General</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="dedicated_servers.html">Dedicated Servers</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="overlay.html">Overlay</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="leaderboards.html">Leaderboards</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="lobbies.html">Lobbies and Matchmaking</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="achievements.html">Stats and Achievements</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="cloud.html">Cloud</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="dlc.html">DLC</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="ugc.html">UGC</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="social.html">Social</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="inventory.html">Inventory</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="networking.html">Networking</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="input.html">Input</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="music.html">Music</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="timeline.html">Timeline</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="networking_messages.html">Networking Messages</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="networking_sockets.html">Networking Sockets</a></li></ul>
+        <ul><li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li></ul>
+        <ul><li class="toctree-l1 current"><a class="reference internal current" href="feather_labs_misc.html">Feather Labs Misc</a></li></ul>
+      </div>
+    </div>
+  </nav>
+  <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+    <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu"><i data-toggle="wy-nav-top" class="fa fa-bars"></i><a href=".">GMEXT-Steamworks</a></nav>
+    <div class="wy-nav-content"><div class="rst-content">
+      <div role="navigation" aria-label="breadcrumbs navigation"><ul class="wy-breadcrumbs"><li><a href="." class="icon icon-home" aria-label="Docs"></a></li><li class="breadcrumb-item active">Feather Labs Misc</li></ul><hr /></div>
+      <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article"><div class="section" itemprop="articleBody">
+<p><a id="top"></a></p>
+<h1 id="feather-labs-misc">Feather Labs Misc</h1>
+<p>This module contains platform utilities supplied by Feather Labs that are not part of the Steamworks API.</p>
+<h2 id="functions">Functions</h2>
+<ul><li><a href="feather_labs_misc.html#network_get_local_ipv4_addresses">network_get_local_ipv4_addresses</a></li></ul>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="network_get_local_ipv4_addresses">network_get_local_ipv4_addresses</h1>
+<p>This function enumerates IPv4 addresses assigned to local network adapters. It does not require Steam to be initialized and may return Ethernet, Wi-Fi, VPN, virtual, disconnected, and loopback interfaces.</p>
+<div class="admonition note"><p class="admonition-title">Note</p><p>A computer can have several valid local addresses. The function deliberately returns every address instead of guessing which adapter should be used by a server.</p></div>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">network_get_local_ipv4_addresses()</code></pre></blockquote>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Arrays.htm">Array</a> of Structs</p></blockquote>
+<table>
+<thead><tr><th>Member</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>address</code></td><td>String</td><td>IPv4 address in dotted notation, for example <code>192.168.1.20</code>.</td></tr>
+<tr><td><code>adapter_name</code></td><td>String</td><td>Friendly adapter name on Windows, or the interface name on Linux/macOS.</td></tr>
+<tr><td><code>prefix_length</code></td><td>Real</td><td>Network prefix length, for example <code>24</code> for the mask <code>255.255.255.0</code>.</td></tr>
+<tr><td><code>is_up</code></td><td>Boolean</td><td>Whether the operating system reports the adapter as operational.</td></tr>
+<tr><td><code>is_loopback</code></td><td>Boolean</td><td>Whether the address belongs to a loopback interface such as <code>127.0.0.1</code>.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _interfaces = network_get_local_ipv4_addresses();
+
+for (var _i = 0; _i &lt; array_length(_interfaces); ++_i)
+{
+    var _interface = _interfaces[_i];
+
+    if (_interface.is_up &amp;&amp; !_interface.is_loopback)
+    {
+        show_debug_message(
+            _interface.adapter_name + ": " + _interface.address
+        );
+    }
+}</code></pre>
+<p>The example prints every active non-loopback IPv4 address. VPN and virtual adapters are intentionally not filtered automatically.</p>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+      </div></div>
+    </div></div>
+  </section>
+</div>
+<script src="js/jquery-3.6.0.min.js"></script><script>var base_url = ".";</script><script src="js/theme_extra.js"></script><script src="js/theme.js"></script><script src="assets/js/gmext_script.js"></script><script>jQuery(function () { SphinxRtdTheme.Navigation.enable(true); });</script>
+</body></html>
