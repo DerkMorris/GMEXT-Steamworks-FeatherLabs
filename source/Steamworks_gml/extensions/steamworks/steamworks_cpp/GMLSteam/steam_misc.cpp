@@ -7,6 +7,7 @@
 #include "steam_common.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <string>
@@ -318,8 +319,77 @@ YYEXPORT void network_ipv4_to_number(RValue& Result, CInstance*, CInstance*, int
     Result.v64 = static_cast<int64_t>(address);
 }
 
+/// @description Converts a numeric host-order IPv4 value to dotted notation.
+/// @param {Int64} ip Numeric IPv4 value from 0 through 4294967295.
+/// @returns {String} IPv4 address, or an empty string if the value is invalid.
+YYEXPORT void network_number_to_ipv4(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+    if (argc < 1)
+    {
+        YYCreateString(&Result, "");
+        return;
+    }
+
+    const int64 value = YYGetInt64(args, 0);
+    if (value < 0 || value > 0xFFFFFFFFLL)
+    {
+        YYCreateString(&Result, "");
+        return;
+    }
+
+    const uint32_t address = static_cast<uint32_t>(value);
+    char text[16]{};
+    std::snprintf(text, sizeof(text), "%u.%u.%u.%u",
+        static_cast<unsigned>((address >> 24u) & 255u),
+        static_cast<unsigned>((address >> 16u) & 255u),
+        static_cast<unsigned>((address >> 8u) & 255u),
+        static_cast<unsigned>(address & 255u));
+    YYCreateString(&Result, text);
+}
+
 namespace
 {
+#ifdef OS_Windows
+HWND window_handle_from_rvalue(RValue* value)
+{
+    if (!value)
+        return nullptr;
+
+    uintptr_t handle = 0;
+    switch (KIND_RValue(value))
+    {
+        case VALUE_PTR:
+            handle = reinterpret_cast<uintptr_t>(value->ptr);
+            break;
+        case VALUE_INT64:
+            handle = static_cast<uintptr_t>(value->v64);
+            break;
+        case VALUE_INT32:
+            handle = static_cast<uintptr_t>(
+                static_cast<uint32_t>(value->v32));
+            break;
+        case VALUE_REAL:
+            handle = static_cast<uintptr_t>(value->val);
+            break;
+        case VALUE_STRING:
+        {
+            const char* text = value->GetString();
+            char* end = nullptr;
+            handle = static_cast<uintptr_t>(
+                std::strtoull(text ? text : "", &end, 0));
+            if (!text || end == text || *end != '\0')
+                return nullptr;
+            break;
+        }
+        default:
+            return nullptr;
+    }
+
+    HWND window = reinterpret_cast<HWND>(handle);
+    return window && IsWindow(window) ? window : nullptr;
+}
+#endif
+
 bool consoleActive = false;
 std::deque<std::string> consoleLines;
 int consoleTextColor = -1;
@@ -654,6 +724,49 @@ void set_console_bool(RValue& result, bool value)
     result.kind = VALUE_BOOL;
     result.val = value;
 }
+}
+
+/// @description Shows or hides a native GameMaker window on Windows.
+/// @param {Pointer|String} handle Value returned by window_handle(); use string(window_handle()) for DLL safety.
+/// @param {Bool} visible Whether the window should be visible.
+/// @returns {Bool} Whether the requested visibility was applied.
+YYEXPORT void window_set_visible(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+#ifdef OS_Windows
+    if (argc < 2)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    HWND window = window_handle_from_rvalue(&args[0]);
+    if (!window)
+    {
+        set_console_bool(Result, false);
+        return;
+    }
+
+    const bool visible = YYGetBool(args, 1);
+    ShowWindow(window, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
+    set_console_bool(Result,
+        (IsWindowVisible(window) != FALSE) == visible);
+#else
+    set_console_bool(Result, false);
+#endif
+}
+
+/// @description Returns whether a native GameMaker window is visible on Windows.
+/// @param {Pointer|String} handle Value returned by window_handle(); use string(window_handle()) for DLL safety.
+/// @returns {Bool}
+YYEXPORT void window_get_visible(RValue& Result, CInstance*, CInstance*, int argc, RValue* args)
+{
+#ifdef OS_Windows
+    HWND window = argc > 0 ? window_handle_from_rvalue(&args[0]) : nullptr;
+    set_console_bool(Result,
+        window && IsWindowVisible(window) != FALSE);
+#else
+    set_console_bool(Result, false);
+#endif
 }
 
 /// @description Opens an interactive console for a dedicated server.

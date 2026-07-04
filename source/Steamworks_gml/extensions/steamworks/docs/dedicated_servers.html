@@ -1536,31 +1536,17 @@ the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Pro
 <p><br></p>
 <p><strong>Syntax:</strong></p>
 <blockquote>
-<pre class="highlight"><code class="language-gml">steam_game_server_handle_incoming_packet(buffer, size, source_ip, source_port)</code></pre>
+<pre class="highlight"><code class="language-gml">steam_game_server_handle_incoming_packet(packet)</code></pre>
 </blockquote>
 
 <table>
 <thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
 <tbody>
 <tr>
-<td>buffer</td>
-<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
-<td>source GameMaker buffer ID.</td>
-</tr>
-<tr>
-<td>size</td>
-<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
-<td>valid packet byte count.</td>
-</tr>
-<tr>
-<td>source_ip</td>
-<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Int64</a></td>
-<td>IPv4 in host byte order.</td>
-</tr>
-<tr>
-<td>source_port</td>
-<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
-<td>source UDP port.</td>
+<td>packet</td>
+<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Struct</a></td>
+<td>Contains <code>buffer</code>, <code>size</code>, <code>source_ip</code>
+  (IPv4 in host byte order), and <code>source_port</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -1570,7 +1556,13 @@ the <a href="https://manual.gamemaker.io/monthly/en/The_Asset_Editors/Object_Pro
 <p><br></p>
 
 <p><strong>Example:</strong></p>
-<pre class="highlight"><code class="language-gml">var _result = steam_game_server_handle_incoming_packet(query_buffer, packet_size, source_ip, source_port);</code></pre>
+<pre class="highlight"><code class="language-gml">var _packet = {
+    buffer: query_buffer,
+    size: packet_size,
+    source_ip: source_ip,
+    source_port: source_port,
+};
+var _result = steam_game_server_handle_incoming_packet(_packet);</code></pre>
 <p><br></p>
 <hr />
 <p align="right"><a href="#top">Back To Top</a></p>

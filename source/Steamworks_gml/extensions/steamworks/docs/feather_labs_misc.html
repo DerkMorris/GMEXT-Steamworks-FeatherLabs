@@ -52,6 +52,9 @@
 <ul>
 <li><a href="feather_labs_misc.html#network_get_local_ipv4_addresses">network_get_local_ipv4_addresses</a></li>
 <li><a href="feather_labs_misc.html#network_ipv4_to_number">network_ipv4_to_number</a></li>
+<li><a href="feather_labs_misc.html#network_number_to_ipv4">network_number_to_ipv4</a></li>
+<li><a href="feather_labs_misc.html#window_set_visible">window_set_visible</a></li>
+<li><a href="feather_labs_misc.html#window_get_visible">window_get_visible</a></li>
 <li><a href="feather_labs_misc.html#console_open">console_open</a></li>
 <li><a href="feather_labs_misc.html#console_is_open">console_is_open</a></li>
 <li><a href="feather_labs_misc.html#console_write_line">console_write_line</a></li>
@@ -137,6 +140,77 @@ steam_game_server_init({
     version: "1.0.0.0"
 });</code></pre>
 <p><code>network_ipv4_to_number("127.0.0.1")</code> returns <code>2130706433</code> (<code>0x7F000001</code>). Use <code>0</code> directly when the server should bind to all local IPv4 interfaces.</p>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="network_number_to_ipv4">network_number_to_ipv4</h1>
+<p>This function converts a numeric IPv4 address in host byte order to dotted decimal notation. It is the inverse of <code>network_ipv4_to_number</code> and does not require Steam to be initialized.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">network_number_to_ipv4(ip)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>ip</code></td><td>Int64</td><td>Numeric IPv4 value from <code>0</code> through <code>4294967295</code>.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>String</p></blockquote>
+<p>The IPv4 address in dotted notation, or <code>""</code> when the value is outside the valid unsigned 32-bit range.</p>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">var _address = network_number_to_ipv4(2130706433);
+// "127.0.0.1"</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="window_set_visible">window_set_visible</h1>
+<p>Shows or hides a native GameMaker game window on Windows. Store the handle returned by GameMaker's built-in <code>window_handle()</code> as a String before hiding the window. The dedicated-server console is a separate window and is not affected.</p>
+<div class="admonition warning"><p class="admonition-title">Warning</p><p>Hiding the window does not make GameMaker headless. The process still requires a graphical desktop environment and initializes the normal GameMaker renderer.</p></div>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">window_set_visible(handle, visible)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>handle</code></td><td>String</td><td><code>string(window_handle())</code> for the game window.</td></tr>
+<tr><td><code>visible</code></td><td>Boolean</td><td><code>true</code> to show the window or <code>false</code> to hide it.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: whether the requested visibility was applied. Returns <code>false</code> for an invalid handle or a non-Windows target.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">// Create Event
+game_window_handle = string(window_handle());
+
+window_set_visible(game_window_handle, false);
+draw_enable_drawevent(false);</code></pre>
+<p>To show the game window again, enable drawing before making it visible:</p>
+<pre class="highlight"><code class="language-gml">draw_enable_drawevent(true);
+window_set_visible(game_window_handle, true);</code></pre>
+<p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
+
+<h1 id="window_get_visible">window_get_visible</h1>
+<p>Returns whether a valid native GameMaker window is currently visible on Windows.</p>
+<p><br></p>
+<p><strong>Syntax:</strong></p>
+<blockquote><pre class="highlight"><code class="language-gml">window_get_visible(handle)</code></pre></blockquote>
+<table>
+<thead><tr><th>Argument</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>handle</code></td><td>String</td><td><code>string(window_handle())</code> for the game window.</td></tr>
+</tbody>
+</table>
+<p><br></p>
+<p><strong>Returns:</strong></p>
+<blockquote><p>Boolean: <code>true</code> if the window exists and is visible; otherwise <code>false</code>.</p></blockquote>
+<p><br></p>
+<p><strong>Example:</strong></p>
+<pre class="highlight"><code class="language-gml">if (window_get_visible(game_window_handle))
+{
+    window_set_visible(game_window_handle, false);
+}</code></pre>
 <p><br></p><hr /><p align="right"><a href="#top">Back To Top</a></p>
 
 <h1 id="server-console">Dedicated-server console</h1>

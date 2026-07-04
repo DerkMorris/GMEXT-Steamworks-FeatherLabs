@@ -386,17 +386,40 @@ YYEXPORT void steam_game_server_get_public_ip(RValue& Result, CInstance*, CInsta
 
 YYEXPORT void steam_game_server_handle_incoming_packet(RValue& Result, CInstance*, CInstance*, int, RValue* args)
 {
-    void* bytes = nullptr;
-    int bufferSize = 0;
-    if (!server() || !BufferGetContent(YYGetInt32(args, 0), &bytes, &bufferSize) || !bytes) {
+    if (KIND_RValue(args) != VALUE_OBJECT) {
+        DebugConsoleOutput(
+            "steam_game_server_handle_incoming_packet: expected one packet struct\n");
         set_bool(Result, false);
         return;
     }
-    const int suppliedSize = YYGetInt32(args, 1);
-    const int requested = suppliedSize > 0 ? suppliedSize : 0;
-    const int packetSize = bufferSize < requested ? bufferSize : requested;
-    const bool handled = server()->HandleIncomingPacket(bytes, packetSize, static_cast<uint32>(YYGetInt64(args, 2)), static_cast<uint16>(YYGetInt32(args, 3)));
-    YYFree(bytes);
+
+    RValue* packet = YYGetStruct(args, 0);
+    RValue* bufferValue = game_server_config_member(packet, "buffer");
+    RValue* sizeValue = game_server_config_member(packet, "size");
+    RValue* sourceIpValue = game_server_config_member(packet, "source_ip");
+    RValue* sourcePortValue = game_server_config_member(packet, "source_port");
+    if (!bufferValue || !sizeValue || !sourceIpValue || !sourcePortValue ||
+        !is_numeric_rvalue(bufferValue) || !is_numeric_rvalue(sizeValue) ||
+        !is_numeric_rvalue(sourceIpValue) || !is_numeric_rvalue(sourcePortValue)) {
+        DebugConsoleOutput(
+            "steam_game_server_handle_incoming_packet: invalid packet struct\n");
+        set_bool(Result, false);
+        return;
+    }
+
+    ISteamGameServer* gameServer = server();
+    IBuffer* gmlBuffer = BufferGetFromGML(YYGetInt32(bufferValue, 0));
+    uint8* bytes = gmlBuffer ? BufferGet(gmlBuffer) : nullptr;
+    if (!gameServer || !bytes) {
+        set_bool(Result, false);
+        return;
+    }
+    const int suppliedSize = YYGetInt32(sizeValue, 0);
+    const int packetSize = suppliedSize > 0 ? suppliedSize : 0;
+    const bool handled = gameServer->HandleIncomingPacket(
+        bytes, packetSize,
+        static_cast<uint32>(YYGetInt64(sourceIpValue, 0)),
+        static_cast<uint16>(YYGetInt32(sourcePortValue, 0)));
     set_bool(Result, handled);
 }
 
