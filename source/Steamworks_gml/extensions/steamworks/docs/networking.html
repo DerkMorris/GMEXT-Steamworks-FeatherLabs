@@ -93,6 +93,8 @@
               <ul class="current">
                 <li class="toctree-l1 current"><a class="reference internal current" href="#">Networking</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#client-and-game-server-interfaces">Client and Game Server interfaces</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#packets-io">Packets IO</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#session">Session</a>
@@ -157,6 +159,75 @@
 <p class="admonition-title">Note</p>
 <p>This module is deprecated. Please see the <a href="networking_sockets.html">Networking Sockets</a> and <a href="networking_messages.html">Networking Messages</a> modules of the extension for networking functionality.</p>
 </div>
+<h2 id="client-and-game-server-interfaces">Client and Game Server interfaces</h2>
+<p>The legacy P2P API provides two explicit interface families. Do not mix their Steam identities or packet queues:</p>
+<table>
+<thead>
+<tr>
+<th>Function prefix</th>
+<th>Steam interface</th>
+<th>Local identity</th>
+<th>Async event prefix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>steam_net_client_*</code></td>
+<td><code>SteamNetworking()</code></td>
+<td><code>steam_get_user_steam_id()</code></td>
+<td><code>p2p_session_*</code></td>
+</tr>
+<tr>
+<td><code>steam_net_game_server_*</code></td>
+<td><code>SteamGameServerNetworking()</code></td>
+<td><code>steam_game_server_get_steam_id()</code></td>
+<td><code>game_server_p2p_session_*</code></td>
+</tr>
+</tbody>
+</table>
+<p>The original <code>steam_net_*</code> functions remain as backwards-compatible aliases for the client interface. New code should use an explicit family so that initializing Steam Game Server cannot change which packet queue or identity is used.</p>
+<h3 id="explicit-p2p-functions">Explicit P2P functions</h3>
+<p>Replace <code>prefix</code> below with either <code>steam_net_client</code> or <code>steam_net_game_server</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr><td><code>prefix_set_auto_accept_p2p_sessions(enable)</code></td><td>Enables or disables automatic acceptance for that interface. Client auto-accept is enabled by default and is restricted to current lobby members. Game Server auto-accept is disabled by default.</td></tr>
+<tr><td><code>prefix_accept_p2p_session(user_id)</code></td><td>Accepts an incoming session on that interface.</td></tr>
+<tr><td><code>prefix_close_p2p_session(user_id)</code></td><td>Closes a session on that interface.</td></tr>
+<tr><td><code>prefix_packet_set_type(packet_type)</code></td><td>Changes the stored packet type without changing the stored send channel.</td></tr>
+<tr><td><code>prefix_packet_set_send_options(packet_type, channel)</code></td><td>Stores the packet type and channel used by subsequent sends.</td></tr>
+<tr><td><code>prefix_packet_send(user_id, buffer, size)</code></td><td>Sends through the selected interface using its stored packet type and channel.</td></tr>
+<tr><td><code>prefix_packet_receive(channel)</code></td><td>Reads the next packet from the selected interface and channel.</td></tr>
+<tr><td><code>prefix_packet_get_size()</code></td><td>Returns the size of the last packet received through that interface.</td></tr>
+<tr><td><code>prefix_packet_get_data(buffer)</code></td><td>Copies the last packet received through that interface into a GameMaker buffer.</td></tr>
+<tr><td><code>prefix_packet_get_sender_id()</code></td><td>Returns the sender identity of the last packet received through that interface.</td></tr>
+<tr><td><code>prefix_packet_get_last_send_diagnostic()</code></td><td>Returns the last send diagnostic when diagnostic support is compiled in; otherwise returns an empty struct.</td></tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Old runtime compatibility</p>
+<p><code>packet_send</code> intentionally has only three arguments. Older GameMaker runtimes do not reliably invoke Runner Interface extension functions with four or more arguments. Set the packet type and channel first instead of passing five values to one native call.</p>
+</div>
+<p><strong>Client example:</strong></p>
+<pre class="highlight"><code class="language-gml">steam_net_client_packet_set_send_options(
+    steam_net_packet_type_reliable,
+    2
+);
+var sent = steam_net_client_packet_send(remote_user_id, packet_buffer, packet_size);</code></pre>
+<p><strong>Game Server example:</strong></p>
+<pre class="highlight"><code class="language-gml">steam_net_game_server_packet_set_send_options(
+    steam_net_packet_type_reliable,
+    2
+);
+var sent = steam_net_game_server_packet_send(remote_user_id, packet_buffer, packet_size);</code></pre>
+<h3 id="p2p-send-diagnostics">P2P send diagnostics</h3>
+<p>Send diagnostics are disabled in normal builds and add no per-packet GML struct allocation. Define <code>STEAM_NET_ENABLE_P2P_SEND_DIAGNOSTICS=1</code> in the native extension project and rebuild the DLL to enable diagnostic collection and verbose native failure output.</p>
+<p>When enabled, <code>steam_net_client_packet_get_last_send_diagnostic()</code> and <code>steam_net_game_server_packet_get_last_send_diagnostic()</code> return the most recently collected values for their respective interfaces. When disabled, both functions remain available as stable GML API placeholders and return <code>{}</code>.</p>
 <h2 id="packets-io">Packets IO</h2>
 <p>These functions are provided for handling sending and receiving packets:</p>
 <ul>
@@ -342,11 +413,11 @@ The code above will attempt to get the next packet from Steam API. This would be
 <p align="right"><a href="#top">Back To Top</a></p>
 
 <h1 id="steam_net_packet_send">steam_net_packet_send</h1>
-<p>This function sends a packet to the given endpoint and returns whether successful (as opposed to incorrect arguments/invalid ID). If no packet type is passed in then the default value will be used. The default value can be set using the <a href="networking.html#steam_net_packet_set_type">steam_net_packet_set_type</a> function. The function returns whether or not the packet was successfully sent.</p>
+<p>This backwards-compatible client-interface function sends a packet to the given user and returns whether Steam accepted the send request. The default packet type can be set using <a href="networking.html#steam_net_packet_set_type">steam_net_packet_set_type</a>. New code should use <code>steam_net_client_packet_set_send_options</code> followed by <code>steam_net_client_packet_send</code>.</p>
 <p><br></p>
 <p><strong>Syntax:</strong></p>
 <blockquote>
-<pre class="highlight"><code class="language-gml">steam_net_packet_send(user_id, buffer, size=undefined, packet_type=undefined, channel=undefined)</code></pre>
+<pre class="highlight"><code class="language-gml">steam_net_packet_send(user_id, buffer, size=undefined)</code></pre>
 </blockquote>
 <table>
 <thead>
@@ -371,16 +442,6 @@ The code above will attempt to get the next packet from Steam API. This would be
 <td>size</td>
 <td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
 <td>The size of data to send (default -1, sends the entire buffer)</td>
-</tr>
-<tr>
-<td>packet_type</td>
-<td><a href="networking.html#steam_net_packet_type">steam_net_packet_type</a></td>
-<td>The type of packet to be used</td>
-</tr>
-<tr>
-<td>channel</td>
-<td><a href="https://manual.gamemaker.io/monthly/en/GameMaker_Language/GML_Overview/Data_Types.htm">Real</a></td>
-<td>The channel which acts as a virtual port to send this packet on and allows you help route a message to different systems. Defaults to 0, the default channel.</td>
 </tr>
 </tbody>
 </table>
